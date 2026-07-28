@@ -1,0 +1,47 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyc
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Node
+node_modules/
+build/
+dist/
+.next/
+.turbo/
+*.tsbuildinfo
+npm-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Environment. The example file is committed on purpose; the real ones never are.
+.env
+.env.*
+!.env.example
+
+# Alembic local files. Migration versions under alembic/versions/ are committed.
+alembic.ini.local
+alembic/versions/__pycache__/
+*.db
+*.sqlite3
+
+# Editors and OS
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*~
+
+# Deliberately not ignored, so nobody adds them later by reflex:
+#   CLAUDE.md      the spec
+#   DECISIONS.md   the public log
+#   .claude/       skills and slash commands
