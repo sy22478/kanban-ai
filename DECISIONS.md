@@ -28,3 +28,8 @@ accepting the extra scope and a real security surface as the price of that.
 The schema is multi-user from phase 1, so adding auth is wiring rather than a rewrite.
 Tenant isolation will be tested with an actual cross-user access attempt, not assumed to hold
 because the queries look correct.
+
+### SURPRISE — **Every document written tonight went to a sandbox scratchpad, not my machine.**
+The session had no connected folder, so the writes never reached the outputs folder. The tool
+accepted a Windows path and reported success the entire time. Fixed by mounting F:\claude-docs
+directly.
