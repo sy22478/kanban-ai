@@ -33,3 +33,15 @@ because the queries look correct.
 The session had no connected folder, so the writes never reached the outputs folder. The tool
 accepted a Windows path and reported success the entire time. Fixed by mounting F:\claude-docs
 directly.
+
+---
+
+## 2026-07-29
+
+### BUG — **Postgres 18 refuses to start on the pre-18 volume mount point.**
+The first `docker compose up` had the db container exit 1. Postgres 18 keeps its data in a
+major-version subdirectory under `/var/lib/postgresql`, and refuses to start when it finds data at
+the old `/var/lib/postgresql/data`, which it reports as an unused mount. I had written the pre-18
+`pgdata:/var/lib/postgresql/data`; the fix was to mount at `/var/lib/postgresql` and recreate the
+volume. The error text talks about `pg_upgrade` and reads like corrupted data, which tempts you to
+delete the volume and retry instead of moving the mount point.
