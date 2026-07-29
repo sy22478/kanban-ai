@@ -12,7 +12,9 @@ ENV UV_PROJECT_ENVIRONMENT=/opt/venv \
     PYTHONUNBUFFERED=1
 
 COPY pyproject.toml uv.lock ./
-RUN uv sync --frozen --no-dev
+# Dev dependencies included: this is the development image and the test suite
+# runs inside it. Phase 4 adds a separate production target that omits them.
+RUN uv sync --frozen
 
 ENV PATH="/opt/venv/bin:$PATH"
 

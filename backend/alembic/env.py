@@ -15,7 +15,10 @@ if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 # Set at runtime rather than in alembic.ini so credentials stay in the environment.
-config.set_main_option("sqlalchemy.url", settings.database_url)
+# A caller that already set a url wins, which is how the test suite points these
+# same migrations at the test database instead of the development one.
+if not config.get_main_option("sqlalchemy.url", None):
+    config.set_main_option("sqlalchemy.url", settings.database_url)
 
 target_metadata = Base.metadata
 

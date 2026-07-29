@@ -13,5 +13,19 @@ dependencies = [
     "pydantic-settings>=2.6",
 ]
 
+[dependency-groups]
+dev = [
+    "pytest>=8.3",
+    "pytest-asyncio>=0.24",
+    "httpx>=0.27",
+]
+
 [tool.uv]
 package = false
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+# pytest puts the test file's directory on sys.path, not the project root, so the
+# app package is not importable from tests without this.
+pythonpath = ["."]
