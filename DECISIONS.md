@@ -54,3 +54,9 @@ treating opaque IDs as the control would just be an IDOR that is inconvenient to
 uuidv7 over uuidv4 because Postgres 18 ships it natively, so it costs no extension, and it is
 time-ordered: inserts append to the end of the B-tree index instead of scattering through it and
 fragmenting it as the table grows.
+
+### DECISION — **The development seed user lives in `app/seed.py`, not in migration 0001.**
+Migrations run in every environment, so a development row written into 0001 would arrive in
+production when phase 4 deploys. Migration history is schema; fixtures are not schema.
+The script is idempotent (`insert ... on conflict do nothing`) so restarts do not duplicate the
+row, and it gets deleted in phase 2 when real registration replaces it.
