@@ -45,3 +45,12 @@ the old `/var/lib/postgresql/data`, which it reports as an unused mount. I had w
 `pgdata:/var/lib/postgresql/data`; the fix was to mount at `/var/lib/postgresql` and recreate the
 volume. The error text talks about `pg_upgrade` and reads like corrupted data, which tempts you to
 delete the volume and retry instead of moving the mount point.
+
+### DECISION — **UUID primary keys, not integers, and uuidv7 rather than uuidv4.**
+IDs go into URLs from phase 1 onward, and changing a primary key type once boards and cards exist
+is a painful migration. Cheap now, expensive later.
+Unguessable IDs are defence in depth only. Query-layer scoping in phase 2 is the actual control;
+treating opaque IDs as the control would just be an IDOR that is inconvenient to exploit.
+uuidv7 over uuidv4 because Postgres 18 ships it natively, so it costs no extension, and it is
+time-ordered: inserts append to the end of the B-tree index instead of scattering through it and
+fragmenting it as the table grows.
