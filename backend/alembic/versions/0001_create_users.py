@@ -22,7 +22,10 @@ def upgrade() -> None:
         sa.Column(
             "id",
             sa.Uuid(),
-            server_default=sa.text("gen_random_uuid()"),
+            # uuidv7 is time-ordered, so inserts append to the end of the index
+            # rather than scattering through it the way uuidv4 does. Native to
+            # Postgres 18, so no extension.
+            server_default=sa.text("uuidv7()"),
             nullable=False,
         ),
         sa.Column("email", sa.String(length=320), nullable=False),
