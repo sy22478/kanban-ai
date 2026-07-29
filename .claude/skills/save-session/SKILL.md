@@ -9,6 +9,8 @@ Write `session_state/SESSION_STATE.md` so that a fresh session, with no memory o
 pick the work up. Overwrite the file completely every time. There is one snapshot, never a pile of
 them. The history lives in git and in `DECISIONS.md`.
 
+The snapshot is committed, but it rides the next commit rather than making one of its own.
+
 ## 1. Verify the real state before writing anything
 
 Do not write the snapshot from your memory of the conversation. Remembering what happened is not
