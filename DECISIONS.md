@@ -160,3 +160,13 @@ uses, and if that logic lived in the route handlers the agent would need its own
 exactly how a second, less-guarded path gets built by accident.
 Logged 2026-08-01, reconstructed from the `app/routers` and `app/services` split and `CLAUDE.md`'s
 rule that the agent gets no separate path. The phase 1 draft was not kept.
+
+### SURPRISE — **Rebuilding a Docker image does not refresh an anonymous volume.**
+I added a front-end dependency, rebuilt the image, and TypeScript still reported "Cannot find
+module" for a package plainly listed in `package.json`. I had expected a rebuild to be enough.
+The anonymous volume on `/app/node_modules`, which exists so the Windows bind mount does not hide
+the image's Linux-built modules, survives both `docker compose build` and `up`. The container kept
+serving the old modules while the new ones sat unused in the fresh image. What updates it is
+`docker compose up -d --force-recreate --renew-anon-volumes frontend`.
+Logged 2026-08-01 from the note I made at the time in `session_state/SESSION_STATE.md`, so the
+detail here is contemporaneous even though the entry is late.
