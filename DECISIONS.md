@@ -131,3 +131,13 @@ the one part of the board that was verified by hand and that automation provably
 dnd-kit's pointer path needs a human. Arrows are a click, so they are verifiable end to end without
 me, they are keyboard reachable for free, and they hit exactly the same endpoint a drag would have.
 The cost is that reordering columns is less slick than reordering cards. Accepted.
+
+### DECISION — **Positions are contiguous integers 0..n-1, with the unique constraints deferred.**
+Every parent numbers its children 0..n-1, no gaps and no duplicates, and a move renumbers the
+affected rows inside one transaction. The invariant is the point: a broken move fails a test rather
+than merely looking odd on screen.
+`(board_id, position)` and `(column_id, position)` are unique but `DEFERRABLE INITIALLY DEFERRED`,
+because renumbering necessarily passes through states where two rows briefly share a position. The
+constraint is checked once at commit, on the final arrangement.
+Logged 2026-08-01. The phase 1 draft was not kept, so this is reconstructed from `app/ordering.py`
+and migration 0002 rather than written at the time.
