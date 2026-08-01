@@ -151,3 +151,12 @@ own id alone. A board the current user does not own returns 404 and not 403, bec
 the row exists and belongs to someone else.
 Logged 2026-08-01, reconstructed from `app/deps.py`, `app/services/boards.py` and
 `plan/PHASE_1.md`. The phase 1 draft was not kept.
+
+### DECISION — **Request logic lives in `app/services`, with the routers kept thin.**
+A route handler declares its path, its request schema and its status code, then delegates.
+The ownership lookups, the position renumbering and every write sit in `app/services`.
+The reason is phase 3. The agent's tools have to go through the same validated logic the UI already
+uses, and if that logic lived in the route handlers the agent would need its own copy of it. That is
+exactly how a second, less-guarded path gets built by accident.
+Logged 2026-08-01, reconstructed from the `app/routers` and `app/services` split and `CLAUDE.md`'s
+rule that the agent gets no separate path. The phase 1 draft was not kept.
