@@ -141,3 +141,13 @@ because renumbering necessarily passes through states where two rows briefly sha
 constraint is checked once at commit, on the final arrangement.
 Logged 2026-08-01. The phase 1 draft was not kept, so this is reconstructed from `app/ordering.py`
 and migration 0002 rather than written at the time.
+
+### DECISION — **`get_current_user()` is the only place that decides who a request acts as.**
+In phase 1 it returns the seeded user. In phase 2 its body reads the session instead and nothing
+that depends on it has to change, which is the whole reason it exists this early.
+Ownership is structural rather than a check bolted on afterwards: `owner_id` is part of the board
+query itself, and columns and cards are reached by joining up through their board, never by their
+own id alone. A board the current user does not own returns 404 and not 403, because 403 confirms
+the row exists and belongs to someone else.
+Logged 2026-08-01, reconstructed from `app/deps.py`, `app/services/boards.py` and
+`plan/PHASE_1.md`. The phase 1 draft was not kept.
