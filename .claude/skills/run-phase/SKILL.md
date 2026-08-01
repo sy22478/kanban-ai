@@ -1,6 +1,7 @@
 ---
 name: run-phase
 description: Run a build phase end to end with human checkpoints. Decomposes the phase into tasks, works them one at a time, stops to ask when a decision is the human's to make, and commits a working increment. Use when the user says "run phase N", "start phase N", "continue the phase", or asks to build the next phase.
+disable-model-invocation: true
 ---
 
 # Run phase
@@ -11,17 +12,17 @@ told what to do next at every step, and without making decisions that are not yo
 The point is not autonomy. The point is that the human is asked **fewer times, about better
 things**.
 
+`CLAUDE.md` wins over anything in this file. Where this file is silent, `CLAUDE.md` still applies.
+
 ## 0. Before anything
 
-1. Read `CLAUDE.md`. It defines the phases, the constraints, and what done means. It wins over
-   anything in this file.
+1. Read `CLAUDE.md`. It defines the phases, the constraints, and what done means.
 2. Read `session_state/SESSION_STATE.md` if it exists, then **verify its claims** against
    `git status --short` and `git log --oneline -3`. It is a claim, not ground truth.
 3. Read `DECISIONS.md`. A question already settled there must not be asked again.
 4. Confirm the phase before this one is actually complete and committed. If it is not, say so and
    stop.
-5. `CLAUDE.md` says do not start a phase until told. If the user has not clearly said to start
-   this phase, ask and stop.
+5. If the user has not clearly said to start this phase, ask and stop.
 
 ## 1. Plan, and get the plan approved
 
@@ -84,19 +85,15 @@ For each task:
 
 1. Do the work.
 2. **Run the verification you wrote in the plan.** Not a similar check. The one you specified.
-3. If it fails, find the root cause before changing anything. `CLAUDE.md` forbids guessing and
-   band-aids. A fix you cannot explain is not a fix.
+3. If it fails, diagnose before changing anything. A fix you cannot explain is not a fix.
 4. Record anything learned that a future session would otherwise rediscover. Do not stop to
    write skills mid-phase; collect them for step 5.
 
-Rules while working:
+Push token-heavy work into subagents: reading large files, searching broadly, running verbose
+test suites. Keep the main context for the work itself.
 
-- **Never claim something works without exercising the path that would fail.** A feature that
-  renders correctly and a feature that is hardcoded look identical from outside.
-- Push token-heavy work into subagents: reading large files, searching broadly, running verbose
-  test suites. Keep the main context for the work itself.
-- If context gets tight mid-phase, run `/save-session`, then tell the human to `/clear` and
-  invoke this skill again. Do not try to continue in a degraded context.
+If context gets tight mid-phase, run `/save-session`, then tell the human to `/clear` and invoke
+this skill again. Do not try to continue in a degraded context.
 
 ## 4. Stop early when you should
 
@@ -114,7 +111,7 @@ Stopping with a clear question is a good outcome. Guessing is not.
 
 1. Run the phase's success criteria from `CLAUDE.md`. All of them. Quote the actual output.
 2. Run `/save-session`.
-3. For anything learned that meets `capture-skill`'s bar, run `capture-skill`. Skills earn their
+3. For anything learned that meets `capture-skill`'s bar, run `/capture-skill`. Skills earn their
    place by being the second time you did something.
 4. Commit **one working increment** for the phase, per `CLAUDE.md`. Body explains what and why,
    not a file list.
@@ -134,7 +131,6 @@ Keep it short. The human has been away.
 
 ## Rules
 
-- No emojis, anywhere.
 - Never invent a verification result. If you did not run it, say you did not run it.
 - Uncertainty stated plainly beats confidence that turns out to be wrong. This project has been
   bitten repeatedly by tools reporting success while doing nothing.

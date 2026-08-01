@@ -1,6 +1,7 @@
 ---
 description: Append a tagged entry to DECISIONS.md, then commit and push it
 argument-hint: DECISION|REJECTED|BUG|SURPRISE what happened
+disable-model-invocation: true
 ---
 
 Append one entry to `DECISIONS.md` describing what follows, then commit and push it.

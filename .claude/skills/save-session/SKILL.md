@@ -1,6 +1,7 @@
 ---
 name: save-session
 description: Write a verified snapshot of the current working session to session_state/SESSION_STATE.md, overwriting the previous one. Use when ending a session, handing work off, or before a context reset.
+disable-model-invocation: true
 ---
 
 # Save session

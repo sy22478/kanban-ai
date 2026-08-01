@@ -44,4 +44,8 @@ Thumbs.db
 # Deliberately not ignored, so nobody adds them later by reflex:
 #   CLAUDE.md      the spec
 #   DECISIONS.md   the public log
-#   .claude/       skills and slash commands
+#   .claude/       skills, slash commands, hooks and committed settings
+
+# The one exception inside .claude/: local settings are per-machine, not project config. They hold
+# absolute paths from whoever's laptop wrote them, so they are noise in a public repo.
+.claude/settings.local.json

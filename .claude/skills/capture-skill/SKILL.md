@@ -1,6 +1,7 @@
 ---
 name: capture-skill
 description: Turn a just-solved problem into a reusable skill so a future session does not rediscover it. Use when the user says "capture this", "make this a skill", "remember how to do this", or after solving something that took real effort to work out.
+disable-model-invocation: true
 ---
 
 # Capture Skill
