@@ -46,6 +46,11 @@ Thumbs.db
 #   DECISIONS.md   the public log
 #   .claude/       skills, slash commands, hooks and committed settings
 
-# The one exception inside .claude/: local settings are per-machine, not project config. They hold
+# Two exceptions inside .claude/. Local settings are per-machine, not project config: they hold
 # absolute paths from whoever's laptop wrote them, so they are noise in a public repo.
 .claude/settings.local.json
+
+# Archived transcripts, written by the PreCompact hook before compaction discards the window.
+# They are unencrypted plaintext of everything a tool printed, so they can contain database
+# credentials the moment a command echoes .env. Never committed.
+.claude/transcripts/
