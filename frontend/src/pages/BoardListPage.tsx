@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 
 import { api } from '../api'
@@ -9,40 +9,49 @@ export function BoardListPage() {
   const [error, setError] = useState<string | null>(null)
   const [title, setTitle] = useState('')
 
-  const refresh = () =>
-    api
-      .listBoards()
-      .then((next) => {
-        setBoards(next)
-        setError(null)
-      })
-      .catch((cause: Error) => setError(cause.message))
+  const load = useCallback(async () => {
+    setBoards(await api.listBoards())
+  }, [])
+
+  /** The only writer of `error`, the same shape BoardPage uses. A refetch never
+   *  clears the message a failed action just set. */
+  const run = useCallback(
+    async (action?: () => Promise<unknown>) => {
+      setError(null)
+      let failure: string | null = null
+      let acted = true
+
+      try {
+        await action?.()
+      } catch (cause) {
+        failure = (cause as Error).message
+        acted = false
+      }
+
+      try {
+        await load()
+      } catch (cause) {
+        failure ??= (cause as Error).message
+      }
+
+      setError(failure)
+      return acted
+    },
+    [load],
+  )
 
   useEffect(() => {
-    void refresh()
-  }, [])
+    void run()
+  }, [run])
 
   const create = async (event: React.FormEvent) => {
     event.preventDefault()
     const next = title.trim()
     if (!next) return
-    try {
-      await api.createBoard(next)
-      setTitle('')
-      await refresh()
-    } catch (cause) {
-      setError((cause as Error).message)
-    }
+    if (await run(() => api.createBoard(next))) setTitle('')
   }
 
-  const remove = async (boardId: string) => {
-    try {
-      await api.deleteBoard(boardId)
-      await refresh()
-    } catch (cause) {
-      setError((cause as Error).message)
-    }
-  }
+  const remove = (boardId: string) => run(() => api.deleteBoard(boardId))
 
   return (
     <main className="page">
@@ -50,16 +59,24 @@ export function BoardListPage() {
         <h1>Boards</h1>
       </div>
 
-      {error && <p className="error">Could not reach the API: {error}</p>}
+      {/* Only a failed first load is an unreachable API. A rejected create is
+          the server saying exactly what was wrong with the title, and framing
+          that as a connection problem would be a lie. */}
+      {error && (
+        <p className="error">
+          {boards === null ? `Could not load your boards: ${error}` : error}
+        </p>
+      )}
 
       <form className="row" onSubmit={create} style={{ marginBottom: '1rem' }}>
         <input
           aria-label="New board title"
           placeholder="New board"
+          maxLength={200}
           value={title}
           onChange={(event) => setTitle(event.target.value)}
         />
-        <button type="submit" className="primary">
+        <button type="submit" className="primary" disabled={title.trim() === ''}>
           Create board
         </button>
       </form>

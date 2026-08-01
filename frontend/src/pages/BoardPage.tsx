@@ -66,32 +66,54 @@ export function BoardPage() {
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   )
 
-  const refresh = useCallback(async () => {
+  /** Fetches, and throws if it cannot. It does not touch `error`: see run(). */
+  const load = useCallback(async () => {
     if (!boardId) return
-    try {
-      setBoard(await api.getBoard(boardId))
-      setError(null)
-    } catch (cause) {
-      setError((cause as Error).message)
-    }
+    setBoard(await api.getBoard(boardId))
   }, [boardId])
 
-  useEffect(() => {
-    void refresh()
-  }, [refresh])
+  /** The only writer of `error`, which is why load() above does not touch it.
+   *  Two writers is what hid every failed write on this page: the refetch that
+   *  follows a failed action succeeded, and cleared the message explaining the
+   *  failure before it had been on screen for a frame.
+   *
+   *  Every write goes through here, and so does the initial load. The error
+   *  clears when an action starts, not when a refetch succeeds. */
+  const run = useCallback(
+    async (action?: () => Promise<unknown>) => {
+      setError(null)
+      let failure: string | null = null
+      let acted = true
 
-  /** Every write goes through here: act, then refetch. A failed write shows the
-   *  error and restores the server's version rather than leaving the screen
-   *  showing something that never happened. */
-  const run = async (action: () => Promise<unknown>) => {
-    try {
-      await action()
-      await refresh()
-    } catch (cause) {
-      setError((cause as Error).message)
-      await refresh()
-    }
-  }
+      try {
+        await action?.()
+      } catch (cause) {
+        failure = (cause as Error).message
+        acted = false
+      }
+
+      // Refetch either way, so a failed write cannot leave the board showing
+      // something that never happened. If both fail, which is what a stopped
+      // back-end looks like, the action's error wins: it names what the user
+      // was actually trying to do.
+      try {
+        await load()
+      } catch (cause) {
+        failure ??= (cause as Error).message
+      }
+
+      setError(failure)
+      // Whether the write landed, so a caller can keep the user's typed text on
+      // screen when it did not. An error saying the title is too long is no use
+      // if the input it refers to has already been cleared.
+      return acted
+    },
+    [load],
+  )
+
+  useEffect(() => {
+    void run()
+  }, [run])
 
   const onDragStart = (event: DragStartEvent) => {
     if (!board) return
@@ -154,21 +176,27 @@ export function BoardPage() {
         </h1>
         <form
           className="row"
-          onSubmit={(event) => {
+          onSubmit={async (event) => {
             event.preventDefault()
             const next = columnTitle.trim()
             if (!next) return
-            setColumnTitle('')
-            void run(() => api.createColumn(board.id, next))
+            if (await run(() => api.createColumn(board.id, next))) setColumnTitle('')
           }}
         >
           <input
             aria-label="New column title"
             placeholder="Add a column"
+            // Agrees with ColumnCreate's cap, so the 422 is unreachable from here.
+            maxLength={200}
             value={columnTitle}
             onChange={(event) => setColumnTitle(event.target.value)}
           />
-          <button type="submit">Add column</button>
+          {/* Disabled rather than silently doing nothing when there is no title.
+              It also stops the form submitting on Enter, so both routes to an
+              empty title give the same visible answer. */}
+          <button type="submit" disabled={columnTitle.trim() === ''}>
+            Add column
+          </button>
         </form>
       </div>
 
@@ -181,12 +209,17 @@ export function BoardPage() {
         onDragEnd={onDragEnd}
       >
         <div className="board">
-          {board.columns.map((column) => (
+          {board.columns.map((column, index) => (
             <ColumnPanel
               key={column.id}
               column={column}
+              index={index}
+              count={board.columns.length}
               onRenameColumn={(columnId, title) =>
                 run(() => api.renameColumn(columnId, title))
+              }
+              onMoveColumn={(columnId, position) =>
+                run(() => api.moveColumn(columnId, position))
               }
               onDeleteColumn={(columnId) => run(() => api.deleteColumn(columnId))}
               onAddCard={(columnId, title) => run(() => api.createCard(columnId, title))}

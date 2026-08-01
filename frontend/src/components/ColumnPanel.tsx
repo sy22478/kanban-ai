@@ -8,16 +8,24 @@ import { InlineEdit } from './InlineEdit'
 
 type Props = {
   column: Column
+  index: number
+  count: number
   onRenameColumn: (columnId: string, title: string) => void
+  onMoveColumn: (columnId: string, position: number) => void
   onDeleteColumn: (columnId: string) => void
-  onAddCard: (columnId: string, title: string) => void
+  /** Resolves true when the card was actually created, so the typed title
+   *  survives a rejected write. */
+  onAddCard: (columnId: string, title: string) => Promise<boolean>
   onRenameCard: (cardId: string, title: string) => void
   onDeleteCard: (cardId: string) => void
 }
 
 export function ColumnPanel({
   column,
+  index,
+  count,
   onRenameColumn,
+  onMoveColumn,
   onDeleteColumn,
   onAddCard,
   onRenameCard,
@@ -40,6 +48,28 @@ export function ColumnPanel({
           />
         </h2>
         <span className="count">{column.cards.length}</span>
+        {/* Reorder by button rather than by dragging the column. The card drag
+            path is the one part of the board that needs a human to verify, so it
+            is left alone; these are clickable, keyboard reachable, and hit the
+            same PATCH /api/columns/{id}/move the drag would have. */}
+        <button
+          type="button"
+          className="link"
+          aria-label={`Move column ${column.title} left`}
+          disabled={index === 0}
+          onClick={() => onMoveColumn(column.id, index - 1)}
+        >
+          &lt;
+        </button>
+        <button
+          type="button"
+          className="link"
+          aria-label={`Move column ${column.title} right`}
+          disabled={index === count - 1}
+          onClick={() => onMoveColumn(column.id, index + 1)}
+        >
+          &gt;
+        </button>
         <button
           type="button"
           className="link"
@@ -69,21 +99,23 @@ export function ColumnPanel({
 
       <form
         className="row"
-        onSubmit={(event) => {
+        onSubmit={async (event) => {
           event.preventDefault()
           const next = title.trim()
           if (!next) return
-          onAddCard(column.id, next)
-          setTitle('')
+          if (await onAddCard(column.id, next)) setTitle('')
         }}
       >
         <input
           aria-label={`New card in ${column.title}`}
           placeholder="Add a card"
+          maxLength={200}
           value={title}
           onChange={(event) => setTitle(event.target.value)}
         />
-        <button type="submit">Add</button>
+        <button type="submit" disabled={title.trim() === ''}>
+          Add
+        </button>
       </form>
     </section>
   )

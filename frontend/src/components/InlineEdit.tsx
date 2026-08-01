@@ -39,8 +39,14 @@ export function InlineEdit({ value, label, onSubmit }: Props) {
         commit()
       }}
     >
+      {/* required: Enter on an empty field is refused by the browser with a
+          reason, instead of silently reverting to the old name. Clicking away
+          still abandons the edit, which is what Escape means too.
+          maxLength: agrees with the 200 character cap every title schema has. */}
       <input
         autoFocus
+        required
+        maxLength={200}
         aria-label={`New name for ${label}`}
         value={draft}
         onChange={(event) => setDraft(event.target.value)}

@@ -51,6 +51,21 @@ button.link:hover {
   color: var(--danger);
 }
 
+/* After the rules above so it wins on equal specificity: a disabled control has
+   to look disabled, or "nothing happened" is all the user gets. */
+button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+button:disabled:hover {
+  border-color: var(--line);
+}
+
+button.link:disabled:hover {
+  color: var(--muted);
+}
+
 input {
   font: inherit;
   padding: 0.4rem 0.5rem;
