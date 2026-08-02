@@ -178,3 +178,9 @@ started process loaded the identical file correctly: the hooks menu read 0 confi
 here. Root cause of the inert state is unconfirmed, either the approval state on changed hooks or a
 process predating the config, but the rule holds either way: after any change under `.claude/`,
 exit and restart `claude`, then confirm the count in the hooks menu before trusting the guard.
+
+### SURPRISE — **`git apply` writes the protected isolation test without any command naming it.**
+I expected the PreToolUse guard to cover the shell as well as the file tools, and for a command
+line it does, because it matches on the path appearing in the command. A patch carries the path
+inside its own body, so `git apply` edits the file while the command mentions only the patch.
+Nothing is fixed yet and the hole is real; the guard stops reflex and typos, not intent.
