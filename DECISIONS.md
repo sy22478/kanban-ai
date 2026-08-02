@@ -170,3 +170,11 @@ serving the old modules while the new ones sat unused in the fresh image. What u
 `docker compose up -d --force-recreate --renew-anon-volumes frontend`.
 Logged 2026-08-01 from the note I made at the time in `session_state/SESSION_STATE.md`, so the
 detail here is contemporaneous even though the entry is late.
+
+### BUG — **A running claude process served a `settings.json` it had never loaded.**
+For a whole session the hook protecting `backend/tests/test_tenant_isolation.py` never fired, nor
+did the SessionStart hook, nor the deny rules on `.env` and force pushes, while every freshly
+started process loaded the identical file correctly: the hooks menu read 0 configured there and 3
+here. Root cause of the inert state is unconfirmed, either the approval state on changed hooks or a
+process predating the config, but the rule holds either way: after any change under `.claude/`,
+exit and restart `claude`, then confirm the count in the hooks menu before trusting the guard.
