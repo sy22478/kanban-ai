@@ -184,3 +184,24 @@ I expected the PreToolUse guard to cover the shell as well as the file tools, an
 line it does, because it matches on the path appearing in the command. A patch carries the path
 inside its own body, so `git apply` edits the file while the command mentions only the patch.
 Nothing is fixed yet and the hole is real; the guard stops reflex and typos, not intent.
+
+## 2026-08-07
+
+### SURPRISE. **settings.json carries 36 deny rules, not the 39 every document claimed.**
+The count came out of the new generated session banner on its first run. Three documents, the
+scaffold prompt and the knowledge base all said 39, all copying each other rather than the file.
+Nothing was broken, but the number was the evidence people were citing for the guard being real,
+and it was wrong. This is the argument for generating the banner instead of restating it.
+
+### DECISION. **The guardrails are now config driven, so they can be copied to the other repos.**
+protect_isolation_test.py is protect_paths.py, reading .claude/protected_paths.txt. session_start.py
+counts the deny rules, names the hooks per event, and reports how many protected paths match a real
+file, all read at session start. The CLAUDE.md lift takes its heading names from
+.claude/session_start_sections.md, defaulting to Security, because the other six repos name their
+boundary section HIPAA rules, Safety invariants, Non-negotiables or Privacy boundaries.
+
+### SURPRISE. **A stale zero byte .git/index.lock had been blocking every commit here since 5 August.**
+No git process was running and the file was two days old. The same lock existed in all six target
+repos and in EverAfter and landing-page, the three SEPA ones written within seven seconds of each
+other, which points at an interrupted batch sweep rather than a crash in normal use. Reads worked
+throughout, so nothing looked wrong until a write was attempted.
