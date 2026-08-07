@@ -1,0 +1,12 @@
+# Files whose quiet weakening would be this repository's silent failure.
+# One repo-relative path or glob per line. Blank lines and # comments are ignored.
+# A missing file here protects nothing. A listed path that does not exist yet is inert
+# until it does, so listing a test before it is written is deliberate, not a mistake.
+#
+# Protected through the file tools and through the shell. Read-only shell commands
+# still work: pytest, cat, grep, git add/diff/log/show/status.
+
+# The boundary that proves user A cannot reach user B's data. Editing it is how a failing
+# isolation test quietly becomes a passing one, which is the exact failure CLAUDE.md calls
+# out: something that looks like it works because the failing path was never exercised.
+backend/tests/test_tenant_isolation.py

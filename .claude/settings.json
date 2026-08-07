@@ -58,7 +58,7 @@
           {
             "type": "command",
             "shell": "bash",
-            "command": "case \"$OS\" in Windows_NT) PY=python;; *) PY=python3;; esac; exec \"$PY\" \"${CLAUDE_PROJECT_DIR}/.claude/hooks/protect_isolation_test.py\""
+            "command": "case \"$OS\" in Windows_NT) PY=python;; *) PY=python3;; esac; exec \"$PY\" \"${CLAUDE_PROJECT_DIR}/.claude/hooks/protect_paths.py\""
           }
         ]
       }
