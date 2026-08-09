@@ -1,32 +1,50 @@
 from fastapi import APIRouter, FastAPI
-from sqlalchemy import select
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
 
-from app.deps import CurrentUser, SessionDep
+from app.csrf import csrf_guard
+from app.deps import CurrentUser
+from app.limiter import limiter
 from app.models import User
-from app.routers import boards, cards, columns
+from app.routers import auth, boards, cards, columns
 from app.schemas import UserRead
 
 app = FastAPI(title="Kanban AI")
 
+# Deliberately no CORSMiddleware. The Vite dev proxy means the browser only ever
+# talks to one origin, so there is no cross-origin request to permit. Adding CORS
+# with allow_credentials and a permissive origin regex would hand an attacker's
+# page the ability to make credentialed calls, which is the hole the CSRF checks
+# above are built to close.
+app.middleware("http")(csrf_guard)
+
+# slowapi reads the limiter off app.state, and answers 429 when a limit is hit.
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
 api = APIRouter(prefix="/api")
 
 
-@api.get("/users", response_model=list[UserRead])
-async def list_users(session: SessionDep) -> list[User]:
-    """Phase 0's end-to-end path, kept as a plumbing check. No fallback: with the
-    database stopped this raises rather than returning something that looks like
-    success."""
-    result = await session.execute(select(User).order_by(User.email))
-    return list(result.scalars())
+# GET /api/users was here from phase 0 as the walking skeleton's end-to-end
+# check. It listed every row in the users table, unauthenticated, which was
+# harmless when the only row was a seeded fixture and became a user-enumeration
+# endpoint the moment registration existed. /api/me proves the same plumbing
+# through the same layers and answers only about the caller.
 
 
 @api.get("/me", response_model=UserRead)
 async def read_current_user(user: CurrentUser) -> User:
-    """Who the request is acting as. In phase 1 always the seeded user."""
+    """Who the request is acting as, or 401.
+
+    This is what the front-end asks to decide whether it is signed in, rather
+    than reading the cookie, which it cannot: the cookie is HttpOnly and is
+    invisible to JavaScript by design.
+    """
     return user
 
 
 app.include_router(api)
+app.include_router(auth.router)
 app.include_router(boards.router)
 app.include_router(columns.router)
 app.include_router(cards.router)

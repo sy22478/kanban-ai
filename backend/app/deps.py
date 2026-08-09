@@ -1,31 +1,41 @@
 from typing import Annotated
 
-from fastapi import Depends, HTTPException, status
-from sqlalchemy import select
+from fastapi import Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.config import SEED_USER_EMAIL
+from app.config import SESSION_COOKIE
 from app.db import get_session
 from app.models import User
+from app.services import sessions
 
 SessionDep = Annotated[AsyncSession, Depends(get_session)]
 
+NOT_AUTHENTICATED = "Not authenticated"
 
-async def get_current_user(session: SessionDep) -> User:
+
+async def get_current_user(request: Request, db: SessionDep) -> User:
     """The user the request acts as.
 
-    Phase 1 has no login, so this is the seeded user. This function is the only
-    place in the application that decides who the current user is. In phase 2 its
-    body changes to read the session, and nothing that depends on it has to
-    change, which is the whole reason it exists this early.
+    This is the only place in the application that decides who the current user
+    is. In phase 1 it returned the seeded user; phase 2 changes this body to read
+    the session cookie and nothing that depends on it had to change. That was the
+    claim phase 1 made, and this is it being paid off.
+
+    Everything downstream still receives a User, so every ownership filter in
+    app/services keeps working untouched. Authentication decides who you are;
+    those filters decide what you can reach. Collapsing the two is how an
+    authenticated user ends up able to read everyone's data.
     """
-    result = await session.execute(select(User).where(User.email == SEED_USER_EMAIL))
-    user = result.scalar_one_or_none()
+    token = request.cookies.get(SESSION_COOKIE)
+    if token is None:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, detail=NOT_AUTHENTICATED)
+
+    user = await sessions.user_for_token(db, token)
     if user is None:
-        raise HTTPException(
-            status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="the seeded user is missing; run python -m app.seed",
-        )
+        # Expired, revoked, or never real. All the same answer: a distinction
+        # here would tell the holder of a stolen token which it was.
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, detail=NOT_AUTHENTICATED)
+
     return user
 
 

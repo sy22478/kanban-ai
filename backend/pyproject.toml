@@ -9,8 +9,13 @@ dependencies = [
     "sqlalchemy[asyncio]>=2.0.36",
     "asyncpg>=0.30",
     "alembic>=1.14",
-    "pydantic>=2.9",
+    "pydantic[email]>=2.9",
     "pydantic-settings>=2.6",
+    # Argon2id. Not passlib: its last release was 1.7.4 in October 2020 and it
+    # imports the stdlib crypt module, removed in Python 3.13, which this image
+    # runs.
+    "pwdlib[argon2]>=0.3",
+    "slowapi>=0.1.10",
 ]
 
 [dependency-groups]
