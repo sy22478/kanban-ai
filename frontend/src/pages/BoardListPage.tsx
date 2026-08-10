@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 
 import { api } from '../api'
+import { SignOutButton } from '../auth'
 import type { Board } from '../types'
 
 export function BoardListPage() {
@@ -57,6 +58,7 @@ export function BoardListPage() {
     <main className="page">
       <div className="topbar">
         <h1>Boards</h1>
+        <SignOutButton />
       </div>
 
       {/* Only a failed first load is an unreachable API. A rejected create is

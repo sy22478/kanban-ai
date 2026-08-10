@@ -6,9 +6,9 @@ import {
   useState,
   type ReactNode,
 } from 'react'
-import { Navigate, Outlet } from 'react-router-dom'
+import { Navigate, Outlet, useNavigate } from 'react-router-dom'
 
-import { ApiError, api, setUnauthorizedHandler } from './api'
+import { ApiError, api, readable, setUnauthorizedHandler } from './api'
 import type { User } from './types'
 
 /** `undefined` means the GET /api/me that answers the question has not come back
@@ -127,4 +127,43 @@ export function RedirectIfSignedIn({ children }: { children: ReactNode }) {
   if (user) return <Navigate to="/" replace />
 
   return <>{children}</>
+}
+
+/** Who you are, and the way out. Rendered in both topbars, so signing out is
+ *  reachable from wherever you happen to be. */
+export function SignOutButton() {
+  const { user, signedOut } = useAuth()
+  const navigate = useNavigate()
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const click = async () => {
+    setBusy(true)
+    setError(null)
+
+    try {
+      await api.logout()
+    } catch (cause) {
+      // The server owns the session, so a logout that never reached it has not
+      // ended anything. Clearing the local state here and showing a login page
+      // would claim a sign-out that did not happen, over a cookie that is still
+      // live. Stay put and say what went wrong instead.
+      setError(readable(cause))
+      setBusy(false)
+      return
+    }
+
+    signedOut()
+    navigate('/login', { replace: true })
+  }
+
+  return (
+    <span className="whoami">
+      <span className="muted">{user?.email}</span>
+      <button type="button" onClick={click} disabled={busy}>
+        Sign out
+      </button>
+      {error && <span className="error">{error}</span>}
+    </span>
+  )
 }

@@ -4,7 +4,11 @@ import { Link, useNavigate } from 'react-router-dom'
 import { api, readable } from '../api'
 import { useAuth } from '../auth'
 
-export function LoginPage() {
+/** Agrees with RegisterRequest's min_length. The server is still the authority;
+ *  this only means the obvious case is answered without a round trip. */
+const MINIMUM_PASSWORD = 12
+
+export function RegisterPage() {
   const { signedIn } = useAuth()
   const navigate = useNavigate()
   const [email, setEmail] = useState('')
@@ -18,11 +22,14 @@ export function LoginPage() {
     setError(null)
 
     try {
-      signedIn(await api.login(email, password))
+      // Registration signs you in: the server sets the session cookie on the
+      // 201, so there is no second login step and no window where the account
+      // exists but the person is still on this page.
+      signedIn(await api.register(email, password))
     } catch (cause) {
-      // The back-end answers one message for every way a login can fail, so
-      // there is nothing to translate here and nothing to add: repeating it is
-      // the whole job.
+      // A duplicate address is a 409 whose detail says so in words. Showing the
+      // detail rather than the whole "POST /auth/register failed with 409"
+      // string is the difference between an instruction and a stack trace.
       setError(readable(cause))
       setBusy(false)
       return
@@ -33,7 +40,7 @@ export function LoginPage() {
 
   return (
     <main className="page auth-page">
-      <h1>Sign in</h1>
+      <h1>Create an account</h1>
 
       {error && <p className="error">{error}</p>}
 
@@ -55,24 +62,24 @@ export function LoginPage() {
           <input
             type="password"
             name="password"
-            autoComplete="current-password"
+            autoComplete="new-password"
             required
-            // No minLength here, unlike registration. A floor on this form would
-            // refuse to submit a password that predates the rule, and the person
-            // it locks out is the one who did nothing wrong.
+            minLength={MINIMUM_PASSWORD}
             maxLength={128}
             value={password}
             onChange={(event) => setPassword(event.target.value)}
           />
         </label>
 
+        <p className="muted">At least {MINIMUM_PASSWORD} characters.</p>
+
         <button type="submit" className="primary" disabled={busy}>
-          {busy ? 'Signing in...' : 'Sign in'}
+          {busy ? 'Creating...' : 'Create account'}
         </button>
       </form>
 
       <p className="muted">
-        No account yet? <Link to="/register">Register</Link>
+        Already have an account? <Link to="/login">Sign in</Link>
       </p>
     </main>
   )

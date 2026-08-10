@@ -266,6 +266,17 @@ input {
   width: 100%;
 }
 
+.muted {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.whoami {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
 .empty {
   color: var(--muted);
   font-size: 0.85rem;

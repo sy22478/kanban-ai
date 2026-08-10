@@ -6,6 +6,7 @@ import { AuthProvider, RedirectIfSignedIn, RequireAuth } from './auth'
 import { BoardListPage } from './pages/BoardListPage'
 import { BoardPage } from './pages/BoardPage'
 import { LoginPage } from './pages/LoginPage'
+import { RegisterPage } from './pages/RegisterPage'
 import './styles.css'
 
 // AuthProvider is a layout route, so every page below it shares one answer to
@@ -19,6 +20,14 @@ const router = createBrowserRouter([
         element: (
           <RedirectIfSignedIn>
             <LoginPage />
+          </RedirectIfSignedIn>
+        ),
+      },
+      {
+        path: '/register',
+        element: (
+          <RedirectIfSignedIn>
+            <RegisterPage />
           </RedirectIfSignedIn>
         ),
       },

@@ -14,6 +14,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 
 import { api } from '../api'
+import { SignOutButton } from '../auth'
 import { ColumnPanel } from '../components/ColumnPanel'
 import { InlineEdit } from '../components/InlineEdit'
 import type { BoardDetail, Card } from '../types'
@@ -198,6 +199,7 @@ export function BoardPage() {
             Add column
           </button>
         </form>
+        <SignOutButton />
       </div>
 
       {error && <p className="error">{error}</p>}

@@ -17,11 +17,22 @@ const CSRF_HEADER = 'X-Kanban-CSRF'
 export class ApiError extends Error {
   constructor(
     readonly status: number,
+    /** The server's reason on its own, with no method or path in front of it.
+     *  The sign-in and registration forms show this rather than `message`:
+     *  "That email address is already registered" is something a person can act
+     *  on, "POST /auth/register failed with 409: ..." is not. */
+    readonly detail: string,
     message: string,
   ) {
     super(message)
     this.name = 'ApiError'
   }
+}
+
+/** The reason alone when the server gave one, the raw failure otherwise. A
+ *  stopped back-end never becomes an ApiError, so its message is all there is. */
+export function readable(cause: unknown): string {
+  return cause instanceof ApiError ? cause.detail : (cause as Error).message
 }
 
 /** Called when the server says the caller is not signed in.
@@ -99,6 +110,7 @@ async function request<T>(
 
     throw new ApiError(
       response.status,
+      reason,
       `${method} ${path} failed with ${response.status}: ${reason}`,
     )
   }
