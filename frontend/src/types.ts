@@ -1,3 +1,8 @@
+export type User = {
+  id: string
+  email: string
+}
+
 export type Card = {
   id: string
   column_id: string

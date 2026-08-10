@@ -1,6 +1,39 @@
-import type { Board, BoardDetail, Card, Column } from './types'
+import type { Board, BoardDetail, Card, Column, User } from './types'
 
 type ValidationError = { loc?: unknown[]; msg?: string }
+
+/** The header the back-end's CSRF middleware requires on every state-changing
+ *  request. Its value is never read, only its presence: a cross-site <form>
+ *  cannot set a header at all, and a cross-site fetch that sets one is turned
+ *  into a preflight the API does not answer. See backend/app/csrf.py. */
+const CSRF_HEADER = 'X-Kanban-CSRF'
+
+/** A failure with the status still attached.
+ *
+ *  The guard needs to tell "your session ended" from "the title was too long",
+ *  and the only thing that distinguishes them is the number. Reading it back out
+ *  of the message text would make the message unchangeable: reword the string
+ *  and the guard silently stops firing. */
+export class ApiError extends Error {
+  constructor(
+    readonly status: number,
+    message: string,
+  ) {
+    super(message)
+    this.name = 'ApiError'
+  }
+}
+
+/** Called when the server says the caller is not signed in.
+ *
+ *  api.ts cannot navigate; it has no router. So it reports, and the auth
+ *  provider decides, which keeps the redirect in one place instead of repeated
+ *  at every call site that might get a 401. */
+let onUnauthorized: (() => void) | null = null
+
+export function setUnauthorizedHandler(handler: (() => void) | null) {
+  onUnauthorized = handler
+}
 
 /** What the server said was wrong, not just that something was.
  *
@@ -32,11 +65,28 @@ async function describe(response: Response): Promise<string> {
   return response.statusText || 'no detail given'
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`/api${path}`, {
-    headers: init?.body ? { 'content-type': 'application/json' } : undefined,
-    ...init,
-  })
+async function request<T>(
+  path: string,
+  init?: RequestInit,
+  // Login answers 401 for a wrong password. That is the endpoint working, not a
+  // session ending, so it must not trip the redirect: the user would be thrown
+  // back to a fresh login page with the message about what they typed wrong
+  // discarded.
+  options?: { ownsUnauthorized?: boolean },
+): Promise<T> {
+  const method = init?.method ?? 'GET'
+
+  // Built from init.headers rather than replacing it, because `...init` used to
+  // be spread after `headers` and would have overwritten this object outright
+  // the first time a caller passed one.
+  const headers = new Headers(init?.headers)
+  if (init?.body) headers.set('content-type', 'application/json')
+  // Gated on the method, not on the body. deleteBoard, deleteColumn and
+  // deleteCard send DELETE with no body; keying this off `init.body` would leave
+  // all three without the header, and every delete in the app would be a 403.
+  if (method !== 'GET') headers.set(CSRF_HEADER, '1')
+
+  const response = await fetch(`/api${path}`, { ...init, headers })
 
   if (!response.ok) {
     // Surfaced to the user rather than swallowed, with the server's reason
@@ -44,8 +94,12 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     // whole project is trying to avoid; one that reports only a status code is
     // the same failure with a smaller blast radius.
     const reason = await describe(response)
-    throw new Error(
-      `${init?.method ?? 'GET'} ${path} failed with ${response.status}: ${reason}`,
+
+    if (response.status === 401 && !options?.ownsUnauthorized) onUnauthorized?.()
+
+    throw new ApiError(
+      response.status,
+      `${method} ${path} failed with ${response.status}: ${reason}`,
     )
   }
 
@@ -53,6 +107,28 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export const api = {
+  /** Who the caller is, or 401. The session cookie is HttpOnly, so this request
+   *  is the only way the front-end can know whether it is signed in; JavaScript
+   *  cannot look at the cookie. Its own 401 is the expected answer for a signed-
+   *  out visitor and is handled by the caller, not by the redirect handler. */
+  me: () => request<User>('/me', undefined, { ownsUnauthorized: true }),
+
+  register: (email: string, password: string) =>
+    // Exactly these two fields: RegisterRequest is strict and rejects extras.
+    request<User>('/auth/register', {
+      method: 'POST',
+      body: JSON.stringify({ email, password }),
+    }),
+
+  login: (email: string, password: string) =>
+    request<User>(
+      '/auth/login',
+      { method: 'POST', body: JSON.stringify({ email, password }) },
+      { ownsUnauthorized: true },
+    ),
+
+  logout: () => request<void>('/auth/logout', { method: 'POST' }),
+
   listBoards: () => request<Board[]>('/boards'),
 
   createBoard: (title: string) =>
