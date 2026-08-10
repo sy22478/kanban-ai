@@ -205,3 +205,15 @@ No git process was running and the file was two days old. The same lock existed 
 repos and in EverAfter and landing-page, the three SEPA ones written within seven seconds of each
 other, which points at an interrupted batch sweep rather than a crash in normal use. Reads worked
 throughout, so nothing looked wrong until a write was attempted.
+
+## 2026-08-09
+
+### DECISION — **The four ownership filters are each proven load-bearing by breaking them one at a time.**
+Task 9b. Each removed alone, the full suite run, the failure confirmed to be an assertion and not a
+fixture error, then restored to 115 green before the next. `get_owned_board` caught by 9 tests,
+`get_owned_column` by 8, `get_owned_card` by 3, `move_card`'s target-column check by 2.
+
+### SURPRISE — **Removing `move_card`'s target-column check leaks existence rather than allowing the move.**
+One board has one owner, so a foreign column is always cross-board and that guard still refuses the
+move. What breaks is the uniform 404: a foreign id gives 400, a nonexistent one 500. Caught only
+because line 557 asserts `== 404` and not `>= 400`. A shared board would make this exploitable.
