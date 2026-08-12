@@ -238,3 +238,44 @@ def test_no_get_route_mutates():
     ]
 
     assert offenders == [], f"GET routes calling a writing service: {offenders}"
+
+
+async def test_a_cross_site_preflight_is_not_answered(client):
+    """The precondition the header check rests on, asserted rather than assumed.
+
+    csrf.py calls the custom header "the load-bearing one", and the reason it
+    holds is stated there: a cross-site fetch that sets a custom header becomes a
+    preflight, and with no CORS middleware there is nothing to answer it, so the
+    browser never sends the real request. That reasoning lived in two comments
+    and nothing else. Adding a permissive CORSMiddleware left all 115 tests green
+    while defeating the check entirely.
+
+    This asserts the property, not the implementation: an attacker's preflight
+    gets no access-control-allow-origin back, however CORS came to be enabled.
+    The status code is deliberately not asserted -- with no CORS middleware it is
+    whatever Starlette does with an unrouted OPTIONS, which is not the point.
+    """
+    response = await client.options(
+        "/api/boards",
+        headers={
+            "origin": "https://evil.example",
+            "access-control-request-method": "POST",
+            "access-control-request-headers": CSRF_HEADER,
+        },
+    )
+
+    assert "access-control-allow-origin" not in response.headers
+
+
+def test_no_cors_middleware_is_installed():
+    """The fast tripwire behind the behavioural test above.
+
+    Kept as well as, not instead of: this one names the mechanism and so breaks
+    if someone enables CORS by a different route, which is exactly when the
+    behavioural test is the one that matters.
+    """
+    from app.main import app
+
+    installed = [middleware.cls.__name__ for middleware in app.user_middleware]
+
+    assert not any("CORS" in name for name in installed), installed

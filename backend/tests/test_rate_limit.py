@@ -151,3 +151,25 @@ async def test_the_limiter_is_reset_between_tests(client):
     await register(client, EMAIL)
 
     assert (await login(client, EMAIL)).status_code == 200
+
+
+async def test_the_register_limit_answers_429(client):
+    """Registration has its own per-IP ceiling, and nothing asserted it.
+
+    It is the only bound on an unauthenticated endpoint that performs a 64 MiB
+    Argon2id hash per call, so removing the decorator changed no test while
+    opening the same memory-exhaustion vector the login limit exists to close.
+    An attacker does not need an account to reach this one.
+
+    Distinct addresses on purpose: repeating one would be answered 409 and would
+    prove only that duplicates are counted. The autouse reset fixture clears the
+    counter afterwards, so this does not poison what follows.
+    """
+    statuses = []
+    for attempt in range(25):
+        response = await register(client, f"flood{attempt}@example.com")
+        statuses.append(response.status_code)
+
+    assert 429 in statuses, statuses
+    # And not from the first attempt, which would mean nobody can register at all.
+    assert statuses[0] == 201

@@ -1,152 +1,164 @@
 # Session state
 
-Written 2026-08-03, part way through task 10 of phase 2.
+Written 2026-08-12, at the close of phase 2.
 
 ## Branch and HEAD
 
-Branch `main`. HEAD is `ddedaac Log: git apply bypasses the protected-test guard`. The tree is
-dirty and deliberately so: all of phase 2's back-end work is still uncommitted. The only commits
-made this session were two `DECISIONS.md` entries, both pushed:
+This snapshot rides the commit `Phase 2: pin the CSRF and register-limit assumptions`, so it is
+committed as part of the state it describes. Read the hash with `git log --oneline -1`.
 
-```
-ddedaac Log: git apply bypasses the protected-test guard
-76ae855 Log: a running process served a settings.json it never loaded
-2f079ad Make the guardrails portable and close the holes they missed
-```
+After task F6, `main` and `phase-2` both point at that commit: the merge was `--ff-only`, so there
+is no merge commit and `main` keeps the granular per-phase history it had. The tree is clean.
 
-Modified: `.env.example`, `backend/app/config.py`, `deps.py`, `main.py`, `models.py`, `schemas.py`,
-`backend/pyproject.toml`, `backend/uv.lock`, `backend/tests/conftest.py`, `docker-compose.yml`,
-this file. Deleted and staged: `backend/app/seed.py`.
-
-New and untracked: `backend/alembic/versions/0003_add_passwords_and_sessions.py`,
-`0004_add_login_backoff.py`, `backend/app/csrf.py`, `limiter.py`, `security.py`,
-`backend/app/routers/auth.py`, `backend/app/services/sessions.py`, `users.py`,
-`backend/tests/test_auth.py`, `test_csrf.py`, `test_rate_limit.py`, `test_security.py`,
-`test_sessions.py`, `test_tenant_isolation.py`, `plan/PHASE_2.md`, `.claude/agents/`.
+**`main` has not been pushed.** Every outward-facing step in this phase was Sonu's to run and this
+one is waiting on him. `origin/phase-2` sits one commit behind at `b3389ee`.
 
 ## Current phase
 
-Phase 2, auth and multi-user. Tasks 0 to 9 of `plan/PHASE_2.md` are done and verified. Task 10 is
-part done: its load-bearing check passed, but no front-end code is written yet. Tasks 11 and 12
-remain. Finishing means the front-end can register, log in and log out; every phase 2 success
-criterion in `CLAUDE.md` has been run with its output quoted; and one working increment is
-committed. It is not committable yet, because the front-end has no way to log in.
+**Phase 2 is complete.** All twelve tasks of `plan/PHASE_2.md` are done, and every phase 2 success
+criterion in `CLAUDE.md` has been run with its output quoted, including the one that had never been
+run before: no secret in the repo or the client bundle.
 
-The back-end is done: sessions in Postgres behind a `__Host-session` cookie, Argon2id via pwdlib,
-CSRF as a custom header plus content-type and Origin checks, per-IP and per-account rate limiting,
-and `get_current_user` reading the session. `docker compose exec -T backend pytest -q` reports
-**115 passed**, verified just now.
+The suite reports **118 passed**. It was 115 through tasks 0 to 10; task F added three tests that
+pin the two gaps an independent adversary review found.
+
+Phase 3, the AI agent, has not been started.
 
 ## Exact next step
 
-Task 10, in `frontend/src`. Nothing is half-written; it has not been started. The routing question
-is already settled: `react-router-dom` `^7.1.0` is a dependency, `main.tsx` already builds a
-`createBrowserRouter`, and pages live in `frontend/src/pages/`. No new dependency is needed.
+Phase 3 cannot start until Sonu answers one question, and `CLAUDE.md` is explicit that it must be
+asked rather than guessed: **which OpenRouter model slug**, from the ones that support tool calling.
+A slug was picked silently on the previous project and that is the mistake not to repeat.
 
-1. `frontend/src/api.ts` — add the `X-Kanban-CSRF: 1` header to every non-GET request. Without it
-   every write gets 403. `request()` currently only sets `content-type`, and only when there is a
-   body.
-2. New `frontend/src/pages/LoginPage.tsx` and `RegisterPage.tsx`, added to the router in
-   `frontend/src/main.tsx` at `/login` and `/register`.
-3. A guard that redirects to `/login` on a 401, and a logout control. Sign-in state comes from
-   `GET /api/me`, because the cookie is HttpOnly and JavaScript cannot read it.
+Before that, two things are Sonu's and are not blockers on each other:
 
-Then task 11's success criteria, then task 12's commit.
+1. Push `main`, if he wants phase 2 published.
+2. Run `/log` on the ten proposed `DECISIONS.md` entries below, one per invocation.
+
+### The ten proposed DECISIONS.md entries, not yet logged
+
+From task D, the front end:
+
+1. The CSRF header is gated on the request method, not on the presence of a body. `deleteBoard`,
+   `deleteColumn` and `deleteCard` send DELETE with no body, so keying it off `init.body` would have
+   put every delete in the app at 403.
+2. Sign-in state comes from `GET /api/me`, because the cookie is HttpOnly. The guard carries a third
+   state for "the check has not come back yet" and renders a placeholder for it, which buys away the
+   flash of a login page on every reload at the price of a short wait for everyone.
+3. `ApiError` carries the status and the server's reason separately. Guards branch on the number,
+   the auth forms show the sentence, the board pages keep the full string naming the failed call. A
+   guard that regexes an error message breaks the moment the message is reworded.
+4. Sign out does not clear local state when the request fails. The server owns the session, so a
+   logout that never arrived has ended nothing.
+
+From task E, the criteria and the adversary pass:
+
+5. Criterion 5's bundle half passed on its first ever measurement. No `.env` value, no test password
+   and no cookie name appears in a production build. The structural reason is that the `frontend`
+   compose service is given no environment at all, so Vite has nothing to inline.
+6. The `https://testserver` base URL is protected by the positive controls, not by the cookie-jar
+   assertion. `assert SESSION_COOKIE in client.cookies` passes over `http://` -- httpx stores a
+   Secure cookie and never sends it. What would go red under `http://` are the tests asserting the
+   owner's own 201.
+7. `move_card`'s target-column filter hides existence rather than preventing the move, and only two
+   tests catch its removal, both because they assert `== 404` rather than `>= 400`. It becomes
+   genuinely load-bearing the moment a board has more than one owner.
+8. The adversary found no defect in application code. Every finding was a gap in what the tests
+   could notice, which is the distinction worth keeping: a suite that cannot fail is not the same
+   problem as code that is wrong.
+
+From task F, the pins:
+
+9. The CSRF design's stated precondition is now asserted rather than assumed. Adding
+   `CORSMiddleware(allow_origin_regex=".*", allow_credentials=True)` left all 115 tests green while
+   defeating the check `csrf.py` calls "the load-bearing one". It is pinned twice: behaviourally, by
+   asserting a cross-site preflight gets no `access-control-allow-origin` back, and structurally, by
+   naming the middleware stack. Both were confirmed red with the mutation in place.
+10. `REGISTER_RATE_LIMIT` was applied and referenced by nothing. Removing the decorator let 25
+    consecutive registrations all answer 201, each paying a 64 MiB Argon2id hash, on an endpoint
+    that needs no account. Now pinned and proven red.
 
 ## Blocked on
 
-Nothing. Both things the previous snapshot was blocked on are resolved, below.
-
-## What closed since the last snapshot
-
-**The guardrails work.** The previous snapshot recorded that `.claude/` configuration was inert in
-a long-lived process. A fresh process loads it correctly and the hooks menu reads 3 rather than 0
-against the identical `settings.json`. Proven live rather than inferred: an `Edit` on the isolation
-test was refused, a `Read` of `.env` was refused, and `cp` of the isolation test was refused
-because it writes. Root cause of the inert state is still unconfirmed. Logged as a BUG in
-`DECISIONS.md`; the operational rule is to restart `claude` after any `.claude/` change and check
-the hooks menu.
-
-**Both open adversary findings are fixed and mutation-proven.** Sonu applied a patch by hand to
-`backend/tests/test_tenant_isolation.py`, since the file is hook-protected and I cannot write it.
-
-- The logout test captures Alice's token before logging out and re-presents it as a `cookie`
-  header. Previously the 401 came from the no-cookie branch and never reached the database, so
-  removing revocation entirely left the file at 19 passed. Mutation confirmed after the patch:
-  revocation removed gives `assert 200 == 401` at line 631.
-- The mass-assignment test now performs a successful `POST /api/boards` as its same-verb positive
-  control. Mutation confirmed: `create_board` refusing everyone gives `assert 422 == 201` at
-  line 320.
-
-Both mutations were run against the real file after the patch was applied, both handlers were
-restored, and the suite is back to 115. The count is still 115 and the isolation file is still 19,
-because the patch added assertions inside existing tests rather than new tests. All 19 tests in
-that file are now measured; the docstring's claim about pairing every refusal is now true.
-
-**Task 10's load-bearing check passed.** Real Chrome accepts the `Secure`, `__Host-`-prefixed
-cookie over `http://localhost`. From `http://localhost:5173` through the Vite proxy: `GET /api/me`
-401 before login, `POST /api/auth/login` 200, `GET /api/me` 200 after, `document.cookie` empty and
-blind to `__Host-session`, and the board list rendering after a full page reload, which means the
-cookie is in Chrome's cookie store rather than an in-memory jar. The header sent is
-`__Host-session=...; HttpOnly; Max-Age=7776000; Path=/; SameSite=strict; Secure`.
+The OpenRouter model slug, on Sonu, before phase 3 starts. Nothing else is blocked.
 
 ## Environment learnings
 
-Phase 0 and 1's still hold: ports 5173 front-end, 8000 back-end, 5432 Postgres; `.env` required and
-not in the repo; Postgres 18 mounts at `/var/lib/postgresql`; the back-end venv is at `/opt/venv`;
-`pytest` needs `pythonpath = ["."]`; the test database is `kanban_test`, built by running the real
+Ports 5173 front end, 8000 back end, 5432 Postgres. `.env` is required and is not in the repo.
+Postgres 18 mounts at `/var/lib/postgresql`; the back-end venv is at `/opt/venv`; `pytest` needs
+`pythonpath = ["."]`; the test database is `kanban_test` and is built by running the real
 migrations; create the async engine per test; relationships use `lazy="raise"`; position unique
 constraints are deferred; PowerShell 5.1 has no `&&`; rebuilding the front-end image needs
 `--force-recreate --renew-anon-volumes`.
 
-Carried from the previous snapshot and still true:
+**The protected-path hook is `.claude/hooks/protect_paths.py`, driven by
+`.claude/protected_paths.txt`.** `protect_isolation_test.py` was deleted in `497f3e8`; any note
+describing it describes a file that no longer exists.
 
-- **A `Secure` cookie does not survive `http://` in httpx or curl,** though it does in Chrome.
-  httpx stores it and never sends it, so `assert client.cookies` passes while every request goes
-  out unauthenticated; curl refuses to store it at all. Test clients use
-  `base_url="https://testserver"`; the ASGI transport does no TLS, so the scheme only satisfies the
-  cookie jar. For curl against the running stack, capture the token from the `set-cookie` header
-  and pass it with `-H "cookie: __Host-session=..."`.
-- **httpx files a received cookie under domain `testserver.local`,** so
-  `client.cookies.set(name, value, domain="testserver")` adds a second jar entry rather than
-  replacing the first. Clear the jar and set the `cookie` header outright.
-- **httpx cannot drop a client default header for one request.** `headers={NAME: None}` is a
-  TypeError. Build the request, `del request.headers[NAME]`, then send.
-- **FastAPI 0.140 does not splice included routers into `app.routes`.** It stores a
-  `_IncludedRouter` wrapper with the real routes under `.original_router`.
+- **Naming the protected test in a shell command is refused, even to read it.** The hook takes the
+  verb from the first word, which for a compose command is `docker`, not `pytest`. Use
+  `docker compose exec -T backend pytest -q -k "tenant_isolation" tests/`, which reports
+  `19 passed, 96 deselected`. It works because the file's name never appears in the command.
+- **`git apply` bypasses the hook entirely,** because the path travels inside the patch.
+
+Front end:
+
+- **Typecheck with `docker compose exec -T frontend npx tsc --noEmit`.** There is no host toolchain,
+  and Vite's dev server does not typecheck. Production build is `npm run build` in the same
+  container; `dist/` lands on the host through the bind mount and is gitignored.
+- **The `frontend` compose service has no `environment` and no `env_file`,** so nothing from `.env`
+  can reach the bundle. That is why criterion 5 passes structurally as well as by measurement.
+- **To check a build for secrets without printing them,** `docker compose cp ./frontend/dist
+  backend:/tmp/dist`, then compare inside the backend container, which already holds the values in
+  its own environment. Emit booleans, never values.
+- **Chrome autofills the login form with Sonu's real saved credentials.** Clear both fields before
+  typing, or his password manager entry gets submitted to a dev server.
+- **The Chrome extension screenshots the viewport only, never devtools.** Cookie attributes come
+  from the `set-cookie` header plus behaviour:
+  `__Host-session=...; HttpOnly; Max-Age=7776000; Path=/; SameSite=strict; Secure`, and
+  `document.cookie` is `""` while signed in.
+- **A session cookie from an earlier session can still be valid,** the lifetime being 90 days. To
+  reach a genuinely signed-out browser, `delete from sessions`. That is also how to exercise a
+  mid-session 401: revoke while a page is open, then click something.
+- **The boards table column is `owner_id`, not `user_id`.**
+
+Back end:
+
+- **A `Secure` cookie does not survive `http://` in httpx or curl,** though it does in Chrome. Test
+  clients use `base_url="https://testserver"`; the ASGI transport does no TLS, so the scheme only
+  satisfies the cookie jar. For curl against the running stack, capture the token from the
+  `set-cookie` header and pass it with `-H "cookie: __Host-session=..."`.
+- **httpx files a received cookie under domain `testserver.local`,** so `client.cookies.set(...)`
+  adds a second jar entry rather than replacing the first. Clear the jar and set the header outright.
+- **httpx cannot drop a client default header for one request.** Build the request,
+  `del request.headers[NAME]`, then send.
+- **FastAPI 0.140 does not splice included routers into `app.routes`.** The real routes live under
+  `_IncludedRouter.original_router`.
 - **slowapi's in-memory store outlives a test.** `conftest.py` has an autouse `limiter.reset()`.
-- **`docker cp` into the bind-mounted `/app` writes to the host.**
+  Live limits are 10 logins a minute and 20 registrations an hour, so a test that floods
+  registration needs 21 or more distinct addresses to trip it.
 - **Argon2id at these parameters costs about 65ms per verify,** so it runs inside
   `asyncio.to_thread`. A sync `def` handler cannot work: it cannot await the async session.
-- **No seed user.** `app/seed.py` is deleted. `sonu@example.com` exists because it was registered
-  through the API, password `correct horse battery staple`, and owns one board, "Phase 2 board".
 
-Added this session:
+Accounts in the development database, both created through the API:
 
-- **The isolation-test hook blocks `docker compose exec -T backend pytest tests/test_tenant_isolation.py`.**
-  It matches on the leading command and sees `docker`, not `pytest`, so it refuses. Run that file
-  with `pytest -q -k "tenant_isolation" tests/` instead: `-k` matches module names, so it selects
-  the file without naming it. Reports `19 passed, 96 deselected`.
-- **The hook also refuses `cp` of the protected file,** correctly, because `cp` writes. To work on
-  its content, read it with the Read tool and write a copy to a different path.
-- **`git apply` bypasses that hook entirely,** because the path lives inside the patch and the
-  command never names it. Logged as a SURPRISE. It is how the patch above was applied, by Sonu, on
-  purpose.
-- **GNU `patch` is on PATH in Git Bash** and is useful for verifying a hand-edited patch without
-  touching the target: reverse-apply it to a copy of the patched file and compare the result to
-  the original with `git diff --no-index`. Empty output means the patch round-trips exactly.
-- **The Chrome extension screenshots only the page viewport, not the devtools panel.** F12 opens
-  devtools but nothing in it is capturable, so cookie attributes have to be confirmed from the
-  `set-cookie` header plus behaviour rather than from a screenshot of Application > Cookies.
-- **The front-end already has a router.** `react-router-dom` `^7.1.0`, `createBrowserRouter` in
-  `main.tsx`, pages in `frontend/src/pages/`. Task 10 is wiring, not a new dependency.
+- `sonu@example.com`, owning "Phase 2 board", now empty. The leftover "Trap check" column from task
+  D's delete test was removed.
+- `alice.p2@example.com`, owning "Alice private board". She is the second account from the browser
+  isolation check and is worth keeping.
+
+**Their passwords are deliberately not recorded here.** This file is committed to a repository that
+is pushed publicly, and the credentials are not load-bearing: registration is open, so a fresh
+session can create its own account from the `/register` form in one submission. Do that rather than
+trying to reuse these. The test suite builds its own users through real registration and does not
+depend on either account.
 
 ## First commands on resume
 
 ```
 git -C F:\kanban-ai log --oneline -3
 ```
-Healthy: HEAD is `ddedaac` with a dirty tree, or a later commit if phase 2 has been committed since.
+Healthy: `main` and `phase-2` at the phase 2 close-out commit, tree clean.
 
 ```
 docker compose ps
@@ -156,12 +168,12 @@ Healthy: three services up, `db` healthy.
 ```
 docker compose exec -T backend pytest -q
 ```
-Healthy: 115 passed. Anything less means something in the back-end regressed.
+Healthy: **118 passed**. Anything less means something regressed; that becomes the work.
 
 ```
 docker compose exec -T db psql -U kanban -d kanban -c "select version_num from alembic_version;"
 ```
-Healthy: `0004`. If it is `0002`, the migrations have not been applied to the development database.
+Healthy: `0004`.
 
 ---
 

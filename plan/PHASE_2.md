@@ -376,10 +376,15 @@ One break proves one filter is covered. Four breaks prove the four that exist ar
 `/login` and `/register` routes, a guard redirecting to `/login` on 401, a logout control, and the
 CSRF header on every non-GET in `api.ts`. Session state comes from `GET /api/me`.
 
-**Authorised scope:** `frontend/src/api.ts`, `frontend/src/main.tsx`,
+**Authorised scope:** `frontend/src/api.ts`, `frontend/src/auth.tsx`, `frontend/src/main.tsx`,
 `frontend/src/pages/LoginPage.tsx`, `frontend/src/pages/RegisterPage.tsx`,
 `frontend/src/pages/BoardListPage.tsx`, `frontend/src/pages/BoardPage.tsx`,
 `frontend/src/types.ts`, `frontend/src/styles.css`.
+
+`auth.tsx` was added during execution and is not a scope violation to be corrected: this list was
+wrong, not the code. It holds the auth context, the provider and the two route guards. Folding them
+into `main.tsx` to match the original list would have broken `CLAUDE.md`'s short-focused-modules
+rule to satisfy a planning artifact.
 
 **Verified by:** in the browser, each path clicked rather than inferred. Register a new account and
 land signed in. Log out and confirm `/` redirects to `/login`. Log in again. Register a second
