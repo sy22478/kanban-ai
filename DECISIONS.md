@@ -217,3 +217,46 @@ fixture error, then restored to 115 green before the next. `get_owned_board` cau
 One board has one owner, so a foreign column is always cross-board and that guard still refuses the
 move. What breaks is the uniform 404: a foreign id gives 400, a nonexistent one 500. Caught only
 because line 557 asserts `== 404` and not `>= 400`. A shared board would make this exploitable.
+
+## 2026-08-12
+
+### DECISION — **The CSRF header is gated on the request method, not on the presence of a body.**
+`deleteBoard`, `deleteColumn` and `deleteCard` send DELETE with no body, so keying it off
+`init.body` would have put every delete in the app at 403.
+
+### DECISION — **Sign-in state comes from `GET /api/me`, and the guard carries a third state for "not known yet".**
+The cookie is HttpOnly, so JavaScript cannot answer the question. Rendering a placeholder while the
+check is in flight buys away the flash of a login page on every reload, at the price of a short
+wait for everyone.
+
+### DECISION — **`ApiError` carries the status and the server's reason separately.**
+Guards branch on the number, the auth forms show the sentence, the board pages keep the full string
+naming the failed call. A guard that regexes an error message breaks the moment the message is
+reworded.
+
+### DECISION — **Sign out does not clear local state when the request fails.**
+The server owns the session, so a logout that never arrived has ended nothing. Showing a login page
+over a live cookie would be a sign-out that did not happen.
+
+### DECISION — **Nothing from `.env` can reach the front end by construction: the `frontend` compose service is given no environment at all.**
+Measured for the first time in task 11, the one success criterion that had never been run: no `.env`
+value, no test password and no cookie name appears in a production build.
+
+### SURPRISE — **The `https://testserver` base URL is protected by the positive controls, not by the cookie-jar assertion.**
+`assert SESSION_COOKIE in client.cookies` passes over `http://`: httpx stores a Secure cookie and
+then never sends it. What would actually go red under `http://` are the tests asserting the owner's
+own 201.
+
+### DECISION — **Adversary findings are classified as a test that cannot fail, a test that passes for the wrong reason, or a real defect.**
+They need different responses and conflating them is how a suite becomes decorative. The phase 2
+pass found no defect in application code; every finding was a gap in what the tests could notice.
+
+### DECISION — **The CSRF design's CORS precondition is asserted by a test rather than by comments.**
+Adding `CORSMiddleware(allow_origin_regex=".*", allow_credentials=True)` left all 115 tests green
+while defeating the check `csrf.py` calls the load-bearing one. Pinned behaviourally, by asserting a
+cross-site preflight gets no `access-control-allow-origin` back, and structurally as a tripwire.
+
+### DECISION — **`REGISTER_RATE_LIMIT` is now asserted by a test.**
+It was applied at `auth.py` and referenced by nothing. Removing the decorator let 25 consecutive
+registrations all answer 201, each paying a 64 MiB Argon2id hash, on an endpoint that needs no
+account.

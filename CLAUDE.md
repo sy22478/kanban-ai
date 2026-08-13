@@ -74,8 +74,13 @@ security boundary is the one place deliberate rigor is warranted.
 - The model call goes through the FastAPI back-end, server side only, reading
   `OPENROUTER_API_KEY` from the environment. Never a client-side call. The key never reaches the
   browser.
-- Provider: OpenRouter. The model must support tool calling. I will give you the exact slug. Ask
-  me, do not guess. (A slug was picked silently once on the last project. Do not repeat that.)
+- Provider: OpenRouter. The model is `deepseek/deepseek-v4-flash-0731`, which I chose on
+  2026-08-12 and which was confirmed live on OpenRouter as supporting tool calling. Do not
+  substitute another slug; ask me. (A slug was picked silently once on the last project. Do not
+  repeat that.)
+- I chose the cheapest tool-calling option knowing the trade. Prompt-injection resistance is a
+  model property, so with this one the defence below has to be built and tested rather than
+  assumed. It is a design item for phase 3's plan, not something the model gives us.
 - The agent is given a small set of tools (create_card, move_card, edit_card, delete_card,
   list_board), each scoped to the authenticated user, each going through the same validated
   back-end logic the UI uses. No separate, less-guarded path for the agent.
