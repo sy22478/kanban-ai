@@ -42,7 +42,9 @@ user, even in phase 1. Then auth in phase 2 is wiring, not a rewrite.
    the security-critical phase; its rules are below. Commit.
 3. **The AI agent.** A chat that acts on the signed-in user's board through tool calls: create,
    edit, move, list cards. It changes the real database and the UI reflects it. Commit.
-4. **Deploy and polish (later).** A container host, not Netlify. We choose it when we get there.
+4. **Deploy and polish.** Production images that run anywhere Docker does. Resolved 2026-08-15:
+   host-agnostic is the intent, not a step towards one hosted instance. Someone else runs their
+   own copy with their own data; there is no shared deployment and no host is chosen.
 
 Do not start a phase until I say so.
 
@@ -122,4 +124,10 @@ security boundary is the one place deliberate rigor is warranted.
 - **Phase 3:** the agent creates, edits, and moves cards on my board from natural language; its
   tools are scoped to me; it refuses instructions embedded in card text; it declines what it
   cannot do instead of inventing.
-- **Phase 4:** deployed to a container host and usable by a second person on a different machine.
+- **Phase 4:** a second person can run their own copy on their own machine from the production
+  images, with no host, no account of mine, and nothing of mine running. Amended 2026-08-15 from
+  "deployed to a container host and usable by a second person on a different machine": that
+  wording promised one hosted instance, which was never the intent. Their copy has its own
+  database and its own accounts. Deploying to a real host would additionally need TLS, because
+  the `__Host-` prefixed `Secure` session cookie is refused by browsers over plain http anywhere
+  but localhost, and `ALLOWED_ORIGIN` set to that public origin.

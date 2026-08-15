@@ -386,3 +386,11 @@ end. Both probes now use `127.0.0.1`. Found by running the checks, not by readin
 Probing `/` would decouple the two, and would also report healthy while a broken `proxy_pass` made
 the application unusable, which nothing else would catch. When the API is unreachable the app really
 is down.
+
+### DECISION — **Phase 4 is host-agnostic by intent, and the success criterion was worded wrongly from the start.**
+The original promised "deployed to a container host and usable by a second person on a different
+machine", which reads as one hosted instance. That was never the intent: a second person runs their
+own copy from the production images, with their own database and their own accounts, and nothing of
+mine running. Deploying to a real host stays possible and would additionally need TLS, because a
+`__Host-` prefixed `Secure` cookie is refused over plain http anywhere but localhost, and
+`ALLOWED_ORIGIN` set to the public origin.
