@@ -398,6 +398,21 @@ class TestFailures:
         )
         assert built.openrouter_api_key is None
 
+    def test_a_blank_allowed_origin_is_refused_outright(self):
+        """The same trap as the blank key, with a worse symptom.
+
+        Blank overrides the default with a value that matches no origin, so
+        every state-changing request answers 403 and nothing says why. Unlike
+        the key there is no sensible normalisation: falling back to the
+        localhost default on a public deployment would be worse than stopping.
+        """
+        import pytest as _pytest
+
+        from app.config import Settings
+
+        with _pytest.raises(ValueError, match="ALLOWED_ORIGIN"):
+            Settings(database_url="postgresql+asyncpg://x/y", allowed_origin="")
+
     async def test_an_empty_message_is_refused(self, client, use_model):
         await register(client, "emptymsg@example.com")
         board, _column = await make_board(client)

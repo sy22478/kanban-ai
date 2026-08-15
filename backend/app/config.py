@@ -106,6 +106,24 @@ class Settings(BaseSettings):
     # environment at all, so there is no path from here into the bundle.
     openrouter_api_key: str | None = None
 
+    @field_validator("allowed_origin")
+    @classmethod
+    def _origin_must_not_be_blank(cls, value: str) -> str:
+        """A blank value is worse than a missing one, so it is refused here.
+
+        Missing falls back to the default above. Blank does not: an empty
+        environment variable overrides the default with "", which matches no
+        origin, and the symptom is every state-changing request answering 403
+        with nothing to explain it. docker-compose.prod.yml also refuses to
+        start without it; this catches every other way in.
+        """
+        if not value.strip():
+            raise ValueError(
+                "ALLOWED_ORIGIN is set but empty. Unset it to use the default, "
+                "or set it to the public origin such as https://kanban.example.com"
+            )
+        return value
+
     @field_validator("openrouter_api_key")
     @classmethod
     def _blank_key_is_no_key(cls, value: str | None) -> str | None:

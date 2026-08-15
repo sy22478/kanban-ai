@@ -20,7 +20,11 @@ services:
       retries: 20
 
   backend:
-    build: ./backend
+    build:
+      context: ./backend
+      # Named explicitly now that the Dockerfile has a production target too.
+      # Without this, docker builds the last stage in the file.
+      target: development
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
       ALLOWED_ORIGIN: ${ALLOWED_ORIGIN:-http://localhost:5173}
@@ -42,7 +46,9 @@ services:
              uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
 
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      target: development
     ports:
       - "5173:5173"
     volumes:
