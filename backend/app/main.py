@@ -1,9 +1,11 @@
-from fastapi import APIRouter, FastAPI
+from fastapi import APIRouter, FastAPI, status
+from fastapi.responses import JSONResponse
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
+from sqlalchemy import text
 
 from app.csrf import csrf_guard
-from app.deps import CurrentUser
+from app.deps import CurrentUser, SessionDep
 from app.limiter import limiter
 from app.models import User
 from app.routers import agent, auth, boards, cards, columns
@@ -30,6 +32,28 @@ api = APIRouter(prefix="/api")
 # harmless when the only row was a seeded fixture and became a user-enumeration
 # endpoint the moment registration existed. /api/me proves the same plumbing
 # through the same layers and answers only about the caller.
+
+
+@api.get("/health")
+async def health(session: SessionDep):
+    """Whether this instance can serve requests, for a host's probe.
+
+    It touches the database on purpose. A process that is listening but cannot
+    reach Postgres answers every real request with a 500, and a health check
+    that only proves the process is alive would keep routing traffic to it.
+
+    Unauthenticated, because a probe has no session, and it says nothing beyond
+    up or down: no version, no hostname, no connection string. A 503 rather
+    than an exception, so the answer is the same shape either way.
+    """
+    try:
+        await session.execute(text("select 1"))
+    except Exception:
+        return JSONResponse(
+            {"status": "unavailable"},
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        )
+    return {"status": "ok"}
 
 
 @api.get("/me", response_model=UserRead)

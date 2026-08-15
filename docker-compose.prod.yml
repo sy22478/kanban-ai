@@ -47,6 +47,22 @@ services:
       db:
         condition: service_healthy
     restart: unless-stopped
+    # The probe hits the database, so an instance that is listening but cannot
+    # reach Postgres is reported unhealthy rather than kept in rotation
+    # answering 500s. start_period covers the migrations in the command below,
+    # which run before uvicorn binds.
+    # 127.0.0.1 rather than localhost, which can resolve to ::1 first while the
+    # server is bound to IPv4 only. That failure is "connection refused" from
+    # inside a container that is working perfectly, and a host reading it would
+    # refuse to route traffic to a healthy instance.
+    healthcheck:
+      test:
+        ["CMD", "python", "-c",
+         "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/api/health', timeout=3).status == 200 else 1)"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
     # No ports section on purpose. Nothing outside this network can reach the
     # back-end, which is what makes trusting the forwarded headers below safe:
     # the only client able to set them is nginx.
@@ -73,8 +89,28 @@ services:
     ports:
       - "${PUBLIC_PORT:-8080}:8080"
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     restart: unless-stopped
+    # Through nginx and its /api proxy, so this proves the path a browser
+    # actually takes rather than only that nginx is up. wget is in nginx:alpine;
+    # curl is not. 127.0.0.1 for the IPv6 reason above, which this container hit
+    # for real: nginx listens on IPv4 only, localhost resolved to ::1, and the
+    # probe failed against a container that was serving pages correctly.
+    #
+    # The trade, measured rather than assumed: stopping the database turns this
+    # service unhealthy too, so one fault marks two services down and a host may
+    # restart nginx for a problem nginx does not have. Probing "/" instead would
+    # decouple them, and would also report healthy while a broken proxy_pass
+    # made the application unusable. Nothing else would catch that, so the
+    # coupling is accepted: when the API is unreachable the app really is down,
+    # and this says so.
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:8080/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
     # Still no environment and no env_file. Nothing from .env can reach the
     # bundle, which is what makes "no secret in the client" true by
     # construction rather than by care. The bundle is built at image build time
