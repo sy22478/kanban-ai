@@ -260,3 +260,70 @@ cross-site preflight gets no `access-control-allow-origin` back, and structurall
 It was applied at `auth.py` and referenced by nothing. Removing the decorator let 25 consecutive
 registrations all answer 201, each paying a 64 MiB Argon2id hash, on an endpoint that needs no
 account.
+
+## 2026-08-15
+
+### DECISION — **Phase 3 is four committed increments rather than one.**
+The tool layer, the model call, the panel, then the injection defence. The rule in `CLAUDE.md` says
+a phase that would leave the app broken is too big; it did not fire on phase 2's twelve tasks and it
+is applied here.
+
+### DECISION — **The board is taken from the URL and is not a tool parameter.**
+Neither is the user. There is no id in any tool's argument schema for a model to be argued into
+changing, so the blast radius of a successful injection is one board rather than an account. A test
+asserts no tool ever grows a `user_id`, `owner_id` or `board_id` parameter.
+
+### DECISION — **Ownership is checked before the model is called, not after.**
+An unauthorised caller never causes a billable request, and another user's board id never reaches a
+third party's request log. Asserted by a fake model that raises if it is called at all.
+
+### DECISION — **The JSON schema advertised to the model is generated from the Pydantic model that validates the reply.**
+Hand-written schemas beside the models drift, and the failure is silent: the model is told about a
+field the dispatcher forbids.
+
+### DECISION — **A tool failing is a value, not an exception.**
+The model asking for a card that is not there is an ordinary turn in a conversation, so it is fed
+back and the turn carries on. Only an unreachable model ends the turn.
+
+### DECISION — **An upstream error body from OpenRouter is never relayed to the user.**
+It can echo the request, and with it the board's contents. A test plants a key and a message in a
+429 body and asserts neither survives into what is shown.
+
+### BUG — **Asking about a card on another of my boards answered "Column not found".**
+`_card_on_board` delegated the board check to `_column_on_board`, so the refusal came back with the
+wrong noun and a hint about which layer refused. It makes its own check now. Found by writing the
+test, not by review.
+
+### DECISION — **A model lost part way through a turn reports what it changed instead of answering 502.**
+The tool calls are already committed. Answering 502 discarded the actions list and left the user with
+a board that silently differed from the one they were looking at, which is the exact failure the
+actions list exists to prevent. A failure before any tool ran is still a 502.
+
+### DECISION — **One chat turn may perform ten mutations and three deletions, checked before dispatch.**
+This is the defence that holds when the model has been fully talked over. The asymmetry is
+deliberate: bulk creation is common and recoverable, bulk deletion is neither, and "delete every
+card" is the canonical payload. Destructive is a flag on the tool, not a match on its name.
+
+### DECISION — **A refused tool call does not spend the budget.**
+Otherwise a model emitting bad ids, whether through injection or through being cheap, exhausts the
+allowance on work that never touched the database and denies the user their own next edit.
+
+### DECISION — **Board text reaches the model only inside a `board_content` envelope, and `json.dumps` is what actually holds.**
+The envelope is a label the system prompt can refer to, and a label can be talked past. The
+structural guarantee is JSON encoding: a title containing fake system-message framing stays one
+string value and cannot become part of the conversation. One test payload is built to try it.
+
+### DECISION — **The injection tests script a model that has been completely taken over.**
+A fake that declines would prove only that a fake declines. What is testable is whether the harness
+holds when the model does not, so the fake does exactly what the payload asked and the assertions are
+about the budget and the envelope.
+
+### DECISION — **Whether the real model resists a payload is measured by an opt-in test, not claimed.**
+`test_agent_injection_live.py` needs a key and `KANBAN_LIVE_AGENT_TESTS=1`, and costs money. Its
+docstring says how to read a failure: this model complying is expected, and the budget is what keeps
+that from emptying a board.
+
+### SURPRISE — **An unset variable in docker-compose arrives as `""`, not as absent.**
+`OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}` gave the settings object an empty string, which sailed
+past an `is None` check. The 503 never fires and the first symptom is an OpenRouter 401 dressed as a
+502. Normalised at the boundary and the endpoint check is falsy rather than `is None`.
