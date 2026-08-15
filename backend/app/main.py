@@ -6,7 +6,7 @@ from app.csrf import csrf_guard
 from app.deps import CurrentUser
 from app.limiter import limiter
 from app.models import User
-from app.routers import auth, boards, cards, columns
+from app.routers import agent, auth, boards, cards, columns
 from app.schemas import UserRead
 
 app = FastAPI(title="Kanban AI")
@@ -48,3 +48,4 @@ app.include_router(auth.router)
 app.include_router(boards.router)
 app.include_router(columns.router)
 app.include_router(cards.router)
+app.include_router(agent.router)

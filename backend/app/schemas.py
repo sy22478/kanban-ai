@@ -103,6 +103,32 @@ class LoginRequest(StrictModel):
     password: str = Field(max_length=128)
 
 
+class AgentChatRequest(StrictModel):
+    # The ceiling is the same kind of bound the password field has, for the same
+    # kind of reason: an unbounded message is billed per token at a third party.
+    message: str = Field(min_length=1, max_length=2000)
+
+
+class AgentAction(ReadModel):
+    """One thing the agent did, described by the tool rather than by the model.
+
+    The UI shows these next to the reply. A mutation the user did not ask for is
+    then visible even if the model's own sentence declines to mention it.
+    """
+
+    tool: str
+    ok: bool
+    summary: str
+
+
+class AgentChatResponse(ReadModel):
+    reply: str
+    actions: list[AgentAction]
+    # Whether anything was written, so the front end knows to refetch the board
+    # rather than refetching after every message.
+    changed: bool
+
+
 class UserRead(ReadModel):
     """What the API says about a user.
 
