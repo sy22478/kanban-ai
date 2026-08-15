@@ -327,3 +327,37 @@ that from emptying a board.
 `OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}` gave the settings object an empty string, which sailed
 past an `is None` check. The 503 never fires and the first symptom is an OpenRouter 401 dressed as a
 502. Normalised at the boundary and the endpoint check is falsy rather than `is None`.
+
+### DECISION — **Both Dockerfiles have named targets, and production is a different image rather than the same one run differently.**
+Dev dependencies are omitted, so pytest is not shipped to a public host, and the process runs as a
+non-root user. `docker-compose.yml` now names `target: development` explicitly, because otherwise
+docker builds the last stage in the file.
+
+### DECISION — **nginx serves the built front end and proxies `/api`, so production has one origin exactly as development does.**
+That is what keeps the app free of CORS, and CORS with credentials is the hole the CSRF checks exist
+to close. It also serves `index.html` for unknown paths: `/boards/<id>` has no file behind it, and
+without that a reload or a shared link answers 404.
+
+### DECISION — **The back-end publishes no port in production.**
+nginx is the only thing that can reach it, which is what makes trusting a forwarded header from
+nginx defensible at all.
+
+### SURPRISE — **Passing `$proxy_add_x_forwarded_for` did not give per-IP rate limiting, and left a hole.**
+Expected uvicorn's `--proxy-headers` to make `request.client.host` the real client. Measured
+instead: after tripping the login limit, sending a different `X-Forwarded-For` still answered 429,
+so every client shared one bucket. Worse, that header starts with a value the client chose, so a
+limit keyed on the left of it is evaded by varying one string.
+
+### DECISION — **nginx sets `X-Forwarded-For` to `$remote_addr`, discarding whatever the client sent.**
+Verified: eleven logins trip the limit, and then claiming a different address does not get a fresh
+one. If another proxy is put in front of nginx, which is what a host terminating TLS does, every
+client shares a bucket again; `nginx.conf` says where to change it.
+
+### DECISION — **Exactly one uvicorn worker in production.**
+slowapi keeps its counters in memory, so a second worker keeps its own set and every limit silently
+becomes twice as loose. Scaling out means giving the limiter shared storage first.
+
+### DECISION — **A blank `ALLOWED_ORIGIN` stops the stack instead of being tolerated.**
+Blank overrides the setting's default, matches no origin, and makes every write answer 403 with
+nothing to explain it. Compose refuses with a sentence saying what to set, and the setting itself
+rejects blank. The same trap as the blank OpenRouter key, found the same way.
