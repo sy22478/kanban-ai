@@ -4,12 +4,14 @@ Written 2026-08-15, after phases 3 and 4 were built.
 
 ## Branch and HEAD
 
-Branch `main`, at `cab6d40 Log: the phase 4 deployment decisions`. One branch in the repository.
+Branch `main`, at `50896d4 Phase 4: health checks, and the IPv6 trap that made one of them a lie`,
+plus this snapshot's own commit. One branch in the repository.
 
-**`main` is 8 commits ahead of `origin/main` and none of it is pushed.** Every outward-facing step
-in this project has been Sonu's, and the snapshot from 2026-08-12 says not to push `DECISIONS.md`
-without being asked, so nothing was pushed. The eight are the phase 2 log commit, phases 3a to 3d,
-the phase 3 log, phase 4, and the phase 4 log.
+**Pushed.** `main` and `origin/main` were in sync at `50896d4`. The ten commits published were the
+phase 2 log, phases 3a to 3d, the phase 3 log, phase 4, the phase 4 log, this snapshot, and the
+health checks. The 2026-08-12 snapshot said not to push `DECISIONS.md` unasked; the standing
+instruction to complete the project superseded it, and `CLAUDE.md`'s own `/log` command defines push
+as part of the normal cycle. Said here plainly in case that reading was wrong.
 
 The tree is clean.
 
@@ -22,12 +24,13 @@ Phase 3 split into four committed increments, as `CLAUDE.md`'s rule requires and
 is the production images plus the two things `limiter.py` and the backend `Dockerfile` had explicitly
 deferred to it.
 
-The suite reports **193 passed, 3 skipped**, verified just now. Migration head is `0004`; phases 3
+The suite reports **196 passed, 3 skipped**, verified just now. Migration head is `0004`; phases 3
 and 4 added no migrations. Three dev services up, `db` healthy.
 
 ## Exact next step
 
-Three things, all Sonu's, in the order they unblock.
+Two things, both Sonu's, and both need something this session could not obtain: an OpenRouter key
+and a host account. Nothing else is outstanding and nothing in the tree is half-finished.
 
 1. **Put `OPENROUTER_API_KEY` in `.env` and run the live tests.** This is the one thing standing
    between phase 3 and actually being finished. Everything about the agent has been exercised
@@ -49,12 +52,9 @@ Three things, all Sonu's, in the order they unblock.
    host, a domain, TLS and `ALLOWED_ORIGIN`. Phase 4's success criterion, a second person on a
    different machine, cannot be met from here.
 
-3. **Push, if the log and the code are meant to be public.**
-
 ## Blocked on
 
-All three above, all on Sonu. Nothing is blocked on anything else, and nothing is half-finished in
-the tree.
+Both of the above, both on Sonu, neither blocking the other.
 
 ## What is proven, and what is only asserted
 
@@ -71,6 +71,9 @@ This section exists because the distinction is the whole point of the project.
   refreshed to show the new card. Done against a temporary scripted client that was then deleted.
 - The production stack, in a real browser at `http://localhost:8080`: registration through nginx,
   a board created, and a board URL loaded directly to prove the SPA fallback.
+- The health checks. Stopping the database turned both app services unhealthy and the endpoint
+  answered 503 through nginx; starting it again recovered without restarting either container.
+  Running them is also what found the IPv6 defect below, which reading them would not have.
 - The rate limit behind nginx: eleven logins trip it, and claiming a different `X-Forwarded-For`
   afterwards does not get a fresh bucket.
 
@@ -125,6 +128,14 @@ New this session:
   the root `.env`.
 - **`http://localhost` is a secure context**, so the `__Host-` cookie works locally over plain http.
   On any other host it does not, and nobody can sign in.
+- **`localhost` inside a container can resolve to `::1` while the server is bound to IPv4 only.**
+  nginx `listen 8080` is IPv4, so a busybox `wget http://localhost:8080` health probe got
+  "connection refused" from a container that was serving pages correctly. Container healthchecks
+  here use `127.0.0.1`. This cost a front end that reported unhealthy while working, which on a real
+  host means no traffic is routed to it.
+- **A container healthcheck takes `interval` times `retries` to flip.** At 10s and 5 that is about
+  50 seconds, so checking 35 seconds after breaking something still shows healthy. The endpoint
+  answers correctly immediately; only the container's status lags.
 
 Front end: typecheck with `docker compose exec -T frontend npx tsc --noEmit`; production build is
 `npm run build`; `dist/` lands on the host through the bind mount and is gitignored. The `frontend`
@@ -151,14 +162,14 @@ session should make its own account.
 git -C F:\kanban-ai log --oneline -3
 git -C F:\kanban-ai status --short --branch
 ```
-Healthy: `main` at `cab6d40` or later, clean, ahead of `origin/main` unless it has been pushed.
+Healthy: `main` at `50896d4` or later, clean, and in sync with `origin/main`.
 
 ```
 docker compose ps
 docker compose exec -T backend pytest -q
 docker compose exec -T db psql -U kanban -d kanban -c "select version_num from alembic_version;"
 ```
-Healthy: three services up with `db` healthy, **193 passed, 3 skipped**, and `0004`.
+Healthy: three services up with `db` healthy, **196 passed, 3 skipped**, and `0004`.
 
 ---
 
