@@ -48,6 +48,22 @@ OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 AGENT_MAX_STEPS = 6
 AGENT_TIMEOUT_SECONDS = 60.0
 
+# The mechanical half of the prompt-injection defence: what one turn is allowed
+# to do, regardless of what the model decided. These hold when the model has been
+# fully talked over, which is the case the system prompt cannot cover.
+#
+# The numbers are a deliberate trade. CLAUDE.md's own example request is "add
+# three cards for the login flow", so the ceiling has to sit well above that or
+# ordinary use hits it. Deletions get their own, much lower bound because bulk
+# creation is common and recoverable while bulk deletion is neither, and
+# "delete every card" is the canonical payload.
+#
+# This bounds the blast radius rather than preventing the first bad call. A
+# budget that allowed none of either would also refuse the user's own requests,
+# and an agent that cannot act is not the goal.
+AGENT_MAX_MUTATIONS = 10
+AGENT_MAX_DELETIONS = 3
+
 # Unlike the login limits, this one is about spend as much as abuse: every call
 # past it is real money at a third party.
 AGENT_RATE_LIMIT = "20/minute"

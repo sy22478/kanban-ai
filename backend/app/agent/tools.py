@@ -203,6 +203,12 @@ class ToolSpec:
     # injection defence counts these, so it is a property of the tool rather than
     # something the caller has to remember.
     mutates: bool
+    # Whether a successful call destroys something. Kept separate from `mutates`
+    # because the budgets differ by an order of magnitude, and matched on the
+    # flag rather than on the tool's name so a second destructive tool added
+    # later is bounded by default rather than by somebody remembering to extend
+    # a list of names.
+    destructive: bool = False
 
 
 TOOLS: dict[str, ToolSpec] = {
@@ -252,6 +258,7 @@ TOOLS: dict[str, ToolSpec] = {
             args_model=DeleteCardArgs,
             handler=delete_card,
             mutates=True,
+            destructive=True,
         ),
     )
 }

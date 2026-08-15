@@ -173,7 +173,10 @@ class TestTheLoop:
         second = model.calls[1]
         assert second[-1]["role"] == "tool"
         assert second[-1]["tool_call_id"] == "call-1"
-        assert json.loads(second[-1]["content"])["title"] == "Ship it"
+        # Wrapped in the untrusted-data envelope. See runner._tool_message and
+        # test_agent_injection.py for why the wrapper exists.
+        payload = json.loads(second[-1]["content"])
+        assert payload["board_content"]["title"] == "Ship it"
 
     async def test_a_refused_tool_is_reported_and_the_turn_continues(
         self, client, use_model, session
