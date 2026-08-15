@@ -44,6 +44,12 @@ asserted from the code. Everything that *is* a property of the code, including
 the limits that hold when the model has been talked over entirely, runs in the
 normal suite.
 
+Measured on 2026-08-15: the model refused all four payload shapes across 33 test
+executions. That was not the expected result and it does not relax anything.
+Sampling is not proof, and a provider can change what sits behind a model slug
+without telling anyone, so the limits that hold regardless stay exactly as they
+are.
+
 ## Deploy
 
 `docker-compose.prod.yml` builds both services for production: no bind-mounted

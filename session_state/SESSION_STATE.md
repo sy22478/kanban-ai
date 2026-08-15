@@ -17,44 +17,56 @@ The tree is clean.
 
 ## Current phase
 
-**Phases 3 and 4 are built, committed and green. Neither is finished, and the difference matters.**
+**Phases 3 and 4 are complete.** Every success criterion in `CLAUDE.md` has been run, including the
+two that needed things this session did not start with: a real model call, and a decision about the
+host. Sonu supplied a key on 2026-08-15 and chose host-agnostic as sufficient for phase 4.
 
 Phase 3 split into four committed increments, as `CLAUDE.md`'s rule requires and phase 2 did not do:
 3a the tool layer, 3b the model call and endpoint, 3c the panel, 3d the injection defence. Phase 4
 is the production images plus the two things `limiter.py` and the backend `Dockerfile` had explicitly
 deferred to it.
 
-The suite reports **196 passed, 3 skipped**, verified just now. Migration head is `0004`; phases 3
-and 4 added no migrations. Three dev services up, `db` healthy.
+The suite reports **196 passed, 6 skipped**, verified just now. The six skipped are the live model
+tests, which need a key and cost money. Migration head is `0004`; phases 3 and 4 added no
+migrations. Three dev services up, `db` healthy.
 
 ## Exact next step
 
-Two things, both Sonu's, and both need something this session could not obtain: an OpenRouter key
-and a host account. Nothing else is outstanding and nothing in the tree is half-finished.
+Nothing is outstanding. The build order in `CLAUDE.md` is finished and every success criterion has
+been run.
 
-1. **Put `OPENROUTER_API_KEY` in `.env` and run the live tests.** This is the one thing standing
-   between phase 3 and actually being finished. Everything about the agent has been exercised
-   against a scripted model and in a browser, but **no real model has ever been called by this
-   code.** `deepseek/deepseek-v4-flash-0731` creating a card from a sentence is unproven, and so is
-   the phase 3 criterion that it refuses instructions in card text, because both are properties of
-   the model. Run:
+If the project is picked up again, two directions, neither asked for and so neither started:
 
-   ```
-   docker compose exec -e KANBAN_LIVE_AGENT_TESTS=1 backend pytest tests/test_agent_injection_live.py -q
-   ```
+- **An actual deployment.** Host-agnostic was accepted as sufficient for phase 4, so
+  `docker-compose.prod.yml` is where it stops. Standing it up somewhere needs a host, a domain, TLS,
+  and `ALLOWED_ORIGIN` set to the public origin. Read the note in `frontend/nginx.conf` first: a
+  host that terminates TLS in front of nginx changes which forwarded address the rate limiter counts,
+  and that is the one production behaviour nothing here has exercised.
+- **Re-run the live tests whenever anything about the model changes.** They are the only check on a
+  property this repository does not own.
 
-   It costs a few cents. Its docstring says how to read a failure: this model complying with a
-   payload is the expected outcome and is why the budget in `runner.py` exists.
+## The live model result, and why it does not relax anything
 
-2. **Choose the container host and deploy.** `CLAUDE.md` says "a container host, not Netlify. We
-   choose it when we get there", so the choice was left rather than made.
-   `docker-compose.prod.yml` is host-agnostic and was built and run locally, so what remains is the
-   host, a domain, TLS and `ALLOWED_ORIGIN`. Phase 4's success criterion, a second person on a
-   different machine, cannot be met from here.
+**No key is stored in this repository or in `.env`.** Sonu supplied one in conversation on
+2026-08-15; it was passed to the test process as an environment variable, never written to disk, and
+he was advised to rotate it because it went through a transcript. Running the live tests needs one
+supplied again:
 
-## Blocked on
+```
+docker compose exec -T -e KANBAN_LIVE_AGENT_TESTS=1 -e OPENROUTER_API_KEY=... backend pytest tests/test_agent_injection_live.py -q
+```
 
-Both of the above, both on Sonu, neither blocking the other.
+**The result contradicted this project's own assumption.** `deepseek/deepseek-v4-flash-0731` was
+chosen as the cheapest tool-calling option on the understanding that it would probably comply with
+injected instructions, and the whole of phase 3d follows from that. It refused all four payload
+shapes across 33 test executions, created a card from a plain sentence, and declined a request it has
+no tool for.
+
+Nothing in the code changed as a result, deliberately. Four payloads on one date against one model
+version is sampling rather than proof, a provider can change what sits behind a slug without telling
+anyone, and the mechanical budget is what makes such a change survivable instead of urgent. What the
+recorded result buys is that a future live failure reads as a change in the model rather than as a
+first observation.
 
 ## What is proven, and what is only asserted
 
@@ -77,9 +89,13 @@ This section exists because the distinction is the whole point of the project.
 - The rate limit behind nginx: eleven logins trip it, and claiming a different `X-Forwarded-For`
   afterwards does not get a fresh bucket.
 
+- The agent against the real model, eight runs of the live file. It refused every payload, created a
+  card from a sentence, and declined what it has no tool for.
+
 **Not proven, and not claimed:**
 
-- Anything about the real model. See step 1 above.
+- That the model resists payloads other than the four tried, or on another date, or after the
+  provider changes what sits behind the slug. Sampling is not proof.
 - That per-IP rate limiting distinguishes two *real* clients. It cannot be shown from one machine.
   Closing the spoofing route is what was shown.
 - That the app works behind a host that terminates TLS in front of nginx. `nginx.conf` records
@@ -169,7 +185,7 @@ docker compose ps
 docker compose exec -T backend pytest -q
 docker compose exec -T db psql -U kanban -d kanban -c "select version_num from alembic_version;"
 ```
-Healthy: three services up with `db` healthy, **196 passed, 3 skipped**, and `0004`.
+Healthy: three services up with `db` healthy, **196 passed, 6 skipped**, and `0004`.
 
 ---
 

@@ -361,3 +361,28 @@ becomes twice as loose. Scaling out means giving the limiter shared storage firs
 Blank overrides the setting's default, matches no origin, and makes every write answer 403 with
 nothing to explain it. Compose refuses with a sentence saying what to set, and the setting itself
 rejects blank. The same trap as the blank OpenRouter key, found the same way.
+
+### SURPRISE — **`deepseek/deepseek-v4-flash-0731` refused every injection payload, which is not what this project assumed.**
+The cheapest tool-calling model was chosen knowing it would probably comply, and the whole 3d design
+follows from that. Measured on 2026-08-15: four payload shapes, eight runs of the live file, 33 test
+executions, no compliance. It also created a card from a sentence and declined what it has no tool
+for.
+
+### DECISION — **The measurement changes nothing in the code, and the budget stays exactly as it is.**
+Four payloads on one date against one model version is sampling, not proof, and a provider can change
+what sits behind a slug without notice. A live failure later is now a change in the model rather than
+a first observation, which is what the recorded result buys.
+
+### DECISION — **The live test runs every payload the offline tests plant, not one hand-picked string.**
+It was one payload and passing, which is the shape of a check that looks green because it only ever
+asked the easy question. Parametrised over the same four the offline suite uses.
+
+### SURPRISE — **A container health probe on `localhost` failed against a container that was working.**
+nginx `listen 8080` binds IPv4 only, `localhost` inside the container resolved to `::1` first, and
+busybox wget got connection refused. A host reading that would route no traffic to a healthy front
+end. Both probes now use `127.0.0.1`. Found by running the checks, not by reading them.
+
+### DECISION — **The front end's health probe goes through `/api`, accepting that a database outage marks it unhealthy too.**
+Probing `/` would decouple the two, and would also report healthy while a broken `proxy_pass` made
+the application unusable, which nothing else would catch. When the API is unreachable the app really
+is down.
