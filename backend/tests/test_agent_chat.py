@@ -307,6 +307,57 @@ class TestFailures:
         assert response.status_code == 502
         assert response.json()["detail"] == "The model could not be reached."
 
+    async def test_a_model_lost_mid_turn_still_reports_what_it_changed(
+        self, client, use_model, session
+    ):
+        """The writes are committed and cannot be taken back.
+
+        Answering 502 here would discard the actions list, and the user would be
+        left with a board that silently differs from the one they were looking
+        at. That is the exact failure the actions list exists to prevent, so a
+        mid-turn model failure is a reported outcome instead.
+        """
+
+        class DiesAfterActing:
+            def __init__(self, first):
+                self.replies = [first]
+
+            async def complete(self, messages, tools):
+                if self.replies:
+                    return self.replies.pop(0)
+                raise ModelError("The model could not be reached.")
+
+        await register(client, "midturn@example.com")
+        board, column = await make_board(client)
+        use_model(
+            DiesAfterActing(
+                calls("create_card", {"column_id": column["id"], "title": "Half done"})
+            )
+        )
+
+        response = await chat(client, board["id"])
+
+        assert response.status_code == 200
+        body = response.json()
+        assert "lost contact" in body["reply"]
+        assert body["changed"] is True
+        [action] = body["actions"]
+        assert action["summary"] == "Created the card 'Half done'."
+
+        # And the card really is there, which is why hiding it would be wrong.
+        cards = (await session.execute(select(Card))).scalars().all()
+        assert [card.title for card in cards] == ["Half done"]
+
+    async def test_a_model_lost_before_acting_is_still_a_502(self, client, use_model):
+        """Nothing happened, so there is nothing to report and 502 is honest."""
+        await register(client, "deadfirst@example.com")
+        board, _column = await make_board(client)
+        use_model(ExplodingModel())
+
+        response = await chat(client, board["id"])
+
+        assert response.status_code == 502
+
     async def test_a_missing_api_key_is_a_503(self, client, monkeypatch):
         """No override here: the real dependency runs, with no key configured."""
         from app.config import settings

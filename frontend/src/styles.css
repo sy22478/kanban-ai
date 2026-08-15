@@ -283,6 +283,80 @@ input {
   padding: 0.4rem 0;
 }
 
+.assistant {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 0.8rem;
+  margin-top: 1rem;
+  max-width: 40rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.assistant h2 {
+  font-size: 0.9rem;
+  margin: 0;
+  color: var(--muted);
+}
+
+.transcript {
+  max-height: 20rem;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.turn p {
+  margin: 0.15rem 0 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.turn .who {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.turn.error .who,
+.turn.error p {
+  color: var(--danger);
+}
+
+.actions {
+  list-style: none;
+  margin: 0.4rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  font-size: 0.85rem;
+}
+
+/* The border colour is the whole point: a refused action has to be
+   distinguishable from a completed one at a glance, because the reply above it
+   is the thing that cannot be trusted to say which it was. */
+.actions li {
+  border-left: 3px solid var(--accent);
+  padding-left: 0.5rem;
+  color: var(--muted);
+}
+
+.actions li.refused {
+  border-left-color: var(--danger);
+  color: var(--danger);
+}
+
+.assistant form input {
+  flex: 1;
+  min-width: 12rem;
+}
+
 @media (max-width: 600px) {
   .page {
     padding: 0.75rem;

@@ -45,6 +45,14 @@ OUT_OF_STEPS = (
     "smaller pieces."
 )
 
+# The model became unreachable part way through a turn, after tools had already
+# run. Those writes are committed and cannot be taken back, so the turn ends as a
+# reported outcome rather than as a 502 that would throw the list of them away.
+LOST_THE_MODEL = (
+    "I lost contact with the model part way through. "
+    "Anything already changed is listed below."
+)
+
 
 @dataclass(frozen=True)
 class Action:
@@ -153,7 +161,20 @@ async def run_turn(
     changed = False
 
     for _step in range(AGENT_MAX_STEPS):
-        reply = await client.complete(messages, tools)
+        try:
+            reply = await client.complete(messages, tools)
+        except ModelError:
+            # Nothing has happened yet, so the caller can be told the model is
+            # down and there is nothing to report. This is the 502.
+            if not actions:
+                raise
+            # Tools have already run and committed. Raising here would answer
+            # 502 and discard the record of what was changed, leaving the user
+            # with a board that silently differs from the one they were looking
+            # at. Reporting is the whole point of the actions list.
+            return ChatOutcome(
+                reply=LOST_THE_MODEL, actions=actions, changed=changed
+            )
 
         if not reply.tool_calls:
             return ChatOutcome(

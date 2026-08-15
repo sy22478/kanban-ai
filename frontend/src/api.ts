@@ -1,4 +1,11 @@
-import type { Board, BoardDetail, Card, Column, User } from './types'
+import type {
+  AgentChatResponse,
+  Board,
+  BoardDetail,
+  Card,
+  Column,
+  User,
+} from './types'
 
 type ValidationError = { loc?: unknown[]; msg?: string }
 
@@ -198,4 +205,16 @@ export const api = {
 
   deleteCard: (cardId: string) =>
     request<void>(`/cards/${cardId}`, { method: 'DELETE' }),
+
+  /** One turn with the assistant, scoped to this board.
+   *
+   *  The board id is in the path rather than in the body because it is what the
+   *  server binds the agent's tools to: it is checked against the session before
+   *  the model is called, and the model is never given a way to name a different
+   *  one. See backend/app/agent/tools.py. */
+  chat: (boardId: string, message: string) =>
+    request<AgentChatResponse>(`/boards/${boardId}/agent/chat`, {
+      method: 'POST',
+      body: JSON.stringify({ message }),
+    }),
 }

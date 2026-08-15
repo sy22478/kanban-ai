@@ -15,6 +15,7 @@ import { Link, useParams } from 'react-router-dom'
 
 import { api } from '../api'
 import { SignOutButton } from '../auth'
+import { AssistantPanel } from '../components/AssistantPanel'
 import { ColumnPanel } from '../components/ColumnPanel'
 import { InlineEdit } from '../components/InlineEdit'
 import type { BoardDetail, Card } from '../types'
@@ -238,6 +239,11 @@ export function BoardPage() {
           {dragging && <div className="card-overlay">{dragging.title}</div>}
         </DragOverlay>
       </DndContext>
+
+      {/* run() with no action refetches and is the page's only error writer, so
+          a board that fails to reload after an assistant turn reports it in the
+          same place every other failure on this page does. */}
+      <AssistantPanel boardId={board.id} onChanged={() => run()} />
     </main>
   )
 }
